@@ -1,8 +1,16 @@
+'use client'
 import { type FC } from 'react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { Menu } from 'lucide-react'
 import styles from './styles.module.css'
+import {
+	SignInButton,
+	SignUpButton,
+	SignedIn,
+	SignedOut,
+	UserButton,
+} from '@clerk/nextjs'
 
 const Header: FC = () => {
 	return (
@@ -79,12 +87,16 @@ const Header: FC = () => {
 									styles.header__button,
 									styles.header__login,
 								)}>
-								<Link
-									className={cn(styles.header__link, styles.button__login)}
-									href='#'>
-									{' '}
-									Log in <kbd className={styles.header__kbd}> L </kbd>
-								</Link>
+								<SignedOut>
+									<SignInButton mode='redirect'>
+										<button className={cn(styles.header__link, styles.button__login)}>
+											Log in <kbd className={styles.header__kbd}>L</kbd>
+										</button>
+									</SignInButton>
+								</SignedOut>
+								<SignedIn>
+									<UserButton afterSignOutUrl='/' />
+								</SignedIn>
 							</li>
 
 							<li
@@ -93,12 +105,13 @@ const Header: FC = () => {
 									styles.header__button,
 									styles.header__signup,
 								)}>
-								<Link
-									className={cn(styles.header__link, styles.button__signup)}
-									href='#'>
-									{' '}
-									Sign up
-								</Link>
+								<SignedOut>
+									<SignUpButton mode='redirect'>
+										<button className={cn(styles.header__link, styles.button__signup)}>
+											Sign up
+										</button>
+									</SignUpButton>
+								</SignedOut>
 							</li>
 
 							<li
