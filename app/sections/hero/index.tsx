@@ -35,7 +35,7 @@ const Hero: FC = () => {
 
 				<div className={cn(styles.button__container)}>
 					<BlurPopUp delay={1.1}>
-						<Link className={styles.start__link} href='#'>
+						<Link className={styles.start__link} href='/sign-in'>
 							{' '}
 							Analyze my paper{' '}
 						</Link>
