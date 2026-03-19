@@ -13,21 +13,21 @@ const FirstCard: FC = () => {
 		<div className={styles.project__overview__card}>
 			<div className={styles.outter__container}>
 				<div className={styles.inner__container}>
-					<h4 className={styles.heading}> Project Overview </h4>
+					<h4 className={styles.heading}> Paper Overview </h4>
 
 					<dl className={styles.definition__list}>
 						<div className={styles.list__item__container}>
-							<dt className={styles.list__label}> Properties </dt>
+							<dt className={styles.list__label}> TRL Analysis </dt>
 							<dd className={styles.list__data}>
 								<div className={styles.first__data__row}>
 									<div className={styles.item}>
 										<Progress />
-										<span className={styles.item__text}> In Progress </span>
+										<span className={styles.item__text}> TRL 4 </span>
 									</div>
 
 									<div className={styles.item}>
 										<Person />
-										<span className={styles.item__text}> ENG </span>
+										<span className={styles.item__text}> Research </span>
 									</div>
 
 									<div className={styles.item}>
@@ -74,32 +74,32 @@ const FirstCard: FC = () => {
 						</div>
 
 						<div className={styles.list__item__container}>
-							<dt className={styles.list__label}> Docs & links </dt>
+							<dt className={styles.list__label}> References </dt>
 							<dd>
 								<div className={styles.first__data__row}>
 									<div className={styles.data__button}>
 										<Figma />
 
-										<span className={styles.item__text}> Exploration </span>
+										<span className={styles.item__text}> Paper PDF </span>
 									</div>
 
 									<div className={styles.data__button}>
 										<Funnal />
 
-										<span className={styles.item__text}> User interviews </span>
+										<span className={styles.item__text}> Patent Search </span>
 									</div>
 								</div>
 							</dd>
 						</div>
 
 						<div className={styles.list__item__container}>
-							<dt className={styles.list__label}> Milestones </dt>
+							<dt className={styles.list__label}> IRL Milestones </dt>
 							<dd className={styles.list__data}>
 								<div className={styles.list__data__rows}>
 									<div className={styles.list__item__row}>
 										<BlueDiamond />
 										<span className={styles.item__text}>
-											Design Review
+											Scoring Complete
 											<span className={styles.inner}> 100%</span>
 										</span>
 									</div>
@@ -107,7 +107,7 @@ const FirstCard: FC = () => {
 									<div className={styles.list__item__row}>
 										<BlueDiamond />
 										<span className={styles.item__text}>
-											Internal Alpha
+											Market Validation
 											<span className={styles.inner}>100% of 10</span>
 										</span>
 									</div>
@@ -115,7 +115,7 @@ const FirstCard: FC = () => {
 									<div className={styles.list__item__row}>
 										<YellowDiamond />
 										<span className={styles.item__text}>
-											GA
+											Pitch Deck Draft
 											<span className={styles.inner}> 25% of 53</span>
 										</span>
 									</div>

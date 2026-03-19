@@ -162,22 +162,21 @@ export const foundationList: FoundationList = [
 export const userCards: UserCardProps[] = [
 	{
 		id: 'user-card-1',
-		title: 'Users report unexpected rate limiting',
+		title: 'Biotech TAM growing 18% YoY — 3 new unicorns in Q3',
 		img: '/user-1.png',
-		name: 'Tom',
+		name: 'Market Scout',
 	},
 	{
 		id: 'user-card-2',
-		title: 'RangeError: Index 0 out of range',
+		title: 'Patent filing surge detected in graphene supercapacitors',
 		img: '/user-2.jpg',
-		name: 'Romain',
+		name: 'Patent Agent',
 	},
 	{
 		id: 'user-card-3',
-		title:
-			'Pressing "Enter" quickly when logging in via email generates multiple emails',
+		title: 'DST SBIRI grant window opens — deadline in 14 days',
 		img: '/user-3.jpg',
-		name: 'Tuomas',
+		name: 'Grant Tracker',
 	},
 ]
 

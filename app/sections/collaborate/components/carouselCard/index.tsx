@@ -1,17 +1,24 @@
-import { type FC } from 'react'
+import { type FC, ReactNode } from 'react'
 import styles from './styles.module.css'
-import Image from 'next/image'
 import { Plus } from 'lucide-react'
+
 type CarouselCardProps = {
 	title?: string
 	description?: string
+	content?: ReactNode
 }
-const CarouselCard: FC<CarouselCardProps> = ({ title = 'Feasibility matrix', description = 'Team size and expertise required' }) => {
+
+const CarouselCard: FC<CarouselCardProps> = ({
+	title = 'Feasibility matrix',
+	description = 'Team size and expertise required',
+	content,
+}) => {
 	return (
 		<div className={styles.card}>
+			{/* Background text-UI layer replacing image */}
 			<div className={styles.img__container}>
-				<div className={styles.img__wrapper}>
-					<Image src='/collaborate-img1.avif' alt='' width={336} height={469} />
+				<div className={styles.img__wrapper} style={{ height: '100%', alignItems: 'flex-start', padding: '1.5rem 1.25rem' }}>
+					{content}
 				</div>
 			</div>
 

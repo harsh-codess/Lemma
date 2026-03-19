@@ -3,7 +3,7 @@ import styles from './styles.module.css'
 import LayoutWrapper from '@/components/layout-wrapper'
 import SectionHeading from '@/components/sectionHeading'
 import Link from 'next/link'
-import Image from 'next/image'
+import RoadmapTimeline from '@/assets/roadmap-timeline.svg'
 import {
 	BentoGrid,
 	BentoGridFeatureLookupWrapper,
@@ -43,7 +43,7 @@ const LongTermPlanning: FC = () => {
 			</LayoutWrapper>
 
 			<div className={styles.hero__img__wrapper}>
-				<Image src='/roadmap.png' alt='' width={3200} height={1620} />
+				<RoadmapTimeline />
 			</div>
 
 			<LayoutWrapper>

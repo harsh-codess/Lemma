@@ -11,7 +11,7 @@ const SecondCard: FC = () => {
 				<div className={styles.outter__container}>
 					<div className={styles.inner__container}>
 						<div className={styles.title}>
-							<span> Triage </span>
+							<span> Signal Queue </span>
 						</div>
 
 						<div className={styles.card__container}>

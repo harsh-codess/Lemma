@@ -1,5 +1,4 @@
 import { type FC } from 'react'
-import Logo from '@/assets/logo.svg'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { Menu } from 'lucide-react'
@@ -15,8 +14,13 @@ const Header: FC = () => {
 					<div className='relative'>
 						<ul className={styles.header__list}>
 							<li className={cn(styles.header__logo, styles.header__item)}>
-								<Link href='/' className={styles.header__logo__link}>
-									<Logo />
+								<Link href='/' className={styles.header__logo__link} style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
+									<svg width="24" height="24" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+										<rect width="28" height="28" rx="7" fill="white"/>
+										<path d="M7 8 L11 8 L21 21" stroke="#0a0a0a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+										<path d="M15 14 L9 21" stroke="#0a0a0a" strokeWidth="2.2" strokeLinecap="round" fill="none"/>
+									</svg>
+									<span style={{ fontWeight: 700, fontSize: '16px', color: 'white', letterSpacing: '-0.3px' }}>Lemma</span>
 								</Link>
 							</li>
 

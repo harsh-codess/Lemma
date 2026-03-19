@@ -8,11 +8,11 @@ const FirstCard: FC = () => {
 			<div className={styles.outter__container}>
 				<div className={styles.inner__container}>
 					<div className={styles.text__container}>
-						<span className={styles.text__title}>Cycle 55</span>
+						<span className={styles.text__title}>Market Scan</span>
 						<div className={styles.label__container}>
-							<GraphLabel title='Scope' backgroundColor='#91959C' />
-							<GraphLabel title='Started' backgroundColor='#DEB949' />
-							<GraphLabel title='Completed' backgroundColor='#6771C5' />
+							<GraphLabel title='TAM' backgroundColor='#91959C' />
+							<GraphLabel title='Patents' backgroundColor='#DEB949' />
+							<GraphLabel title='Funding' backgroundColor='#6771C5' />
 						</div>
 
 						<div className={styles.graph__container}>
