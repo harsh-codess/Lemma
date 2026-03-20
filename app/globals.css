@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
 @font-face {
 	font-family: Linear;
 	font-weight: 400 800;
@@ -21,6 +27,7 @@
 body {
 	font-family: var(--regular-font);
 	background: var(--color-bg-primary);
+	overflow-x: clip;
 }
 
 body::-webkit-scrollbar {
@@ -200,9 +207,9 @@ body::-webkit-scrollbar {
 
 @media (max-width: 640px) {
 	:root {
-		--page-padding-default: 24px;
+		--page-padding-default: 40px;
 		--grid-columns: 4;
-		--grid-column-gap: 16px;
+		--grid-column-gap: 24px;
 		--header-top: 8px;
 		--header-max-width: calc(var(--page-max-width) + 16px);
 		--header-max-width: unset;

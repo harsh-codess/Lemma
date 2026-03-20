@@ -1,0 +1,71 @@
+.page {
+	@apply min-h-screen pt-[calc(var(--header-top)+var(--header-height))] pb-20;
+}
+
+.hero {
+	@apply pt-12 sm:pt-16;
+}
+
+.subheading {
+	@apply mt-5 text-white/70 text-balance text-[21px] leading-[28px] tracking-[-0.37px] font-medium max-w-none md:max-w-[80%];
+}
+
+.card {
+	@apply mt-12 rounded-2xl border border-white/10 bg-[var(--color-bg-secondary)] p-6 sm:p-7;
+}
+
+.cardTitle {
+	@apply text-[var(--color-text-primary)] text-xl sm:text-2xl font-medium tracking-[-0.02em] mb-3;
+}
+
+.body {
+	@apply text-[var(--color-text-secondary)] text-[15px] leading-7;
+}
+
+.domainGrid {
+	@apply mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2;
+}
+
+.domainTag {
+	@apply rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white/85;
+}
+
+.examples {
+	@apply mt-6 grid grid-cols-1 md:grid-cols-3 gap-4;
+}
+
+.exampleCard {
+	@apply rounded-xl border border-white/10 bg-white/[0.03] p-4;
+}
+
+.exampleTitle {
+	@apply text-white text-base font-medium mb-2;
+}
+
+.exampleBody {
+	@apply text-[var(--color-text-secondary)] text-sm leading-6;
+}
+
+.section {
+	@apply mt-12;
+}
+
+.sectionTitle {
+	@apply text-[var(--color-text-primary)] text-2xl sm:text-3xl font-medium tracking-[-0.02em] mb-4;
+}
+
+.list {
+	@apply space-y-3 text-[var(--color-text-secondary)] text-[15px] leading-7;
+}
+
+.svgWrap {
+	@apply mt-8 rounded-xl border border-white/10 bg-[#0d0f11] p-5 sm:p-6 overflow-hidden;
+}
+
+.desktopOnly {
+	@apply hidden sm:block;
+}
+
+.mobileOnly {
+	@apply block sm:hidden;
+}

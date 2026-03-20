@@ -37,6 +37,11 @@
 	transition-property: clip-path, background;
 }
 
+.header .header__wrapper__open {
+	@apply overflow-visible;
+	clip-path: none;
+}
+
 .header .header__wrapper::before {
 	@apply content-[''] absolute pointer-events-none inset-0 border border-[var(--header-border)] rounded-[var(--header-radius)];
 	height: calc(var(--header-height) - var(--header-top));
@@ -114,4 +119,52 @@
 
 .header__menu {
 	@apply sm:!hidden;
+}
+
+.mobile__menu__button {
+	@apply grid h-9 w-9 place-items-center rounded-lg border border-white/15 bg-white/5 text-white transition-colors;
+}
+
+.mobile__menu__backdrop {
+	@apply fixed inset-0 sm:hidden;
+	z-index: calc(var(--layer-header) - 1);
+	background: rgba(0, 0, 0, 0.3);
+	backdrop-filter: blur(8px);
+	-webkit-backdrop-filter: blur(8px);
+}
+
+.mobile__menu {
+	@apply sm:hidden absolute left-0 right-0 top-[calc(100%+8px)] z-50 rounded-2xl border border-white/10 bg-[rgba(10,10,10,0.96)] backdrop-blur-xl p-3 shadow-2xl;
+}
+
+.mobile__menu__title {
+	@apply px-2 pb-2 text-[11px] uppercase tracking-[0.12em] text-white/45;
+}
+
+.mobile__menu__link {
+	@apply block rounded-xl px-3 py-2.5 text-sm font-medium text-white/90 transition-colors;
+}
+
+.mobile__menu__link:hover {
+	@apply bg-white/10 text-white;
+}
+
+.mobile__menu__actions {
+	@apply mt-3 border-t border-white/10 pt-3 flex gap-2;
+}
+
+.mobile__action__button {
+	@apply h-9 px-4 rounded-lg text-sm font-medium;
+}
+
+.mobile__action__secondary {
+	@apply border border-white/20 bg-white/5 text-white;
+}
+
+.mobile__action__primary {
+	@apply bg-white text-black;
+}
+
+.mobile__user__button {
+	@apply ml-1;
 }

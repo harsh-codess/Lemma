@@ -15,7 +15,7 @@ const WideCard: FC = () => {
 						description='Automatic classification of your research domain to match relevant markets and investor theses.'
 					/>
 
-					<Link href='/' className={styles.link}>
+					<Link href='/learn-more/domain-classification' className={styles.link}>
 						<span> Learn more </span>
 						<ChevronRight className='w-4 h-4' />
 					</Link>

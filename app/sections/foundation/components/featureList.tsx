@@ -8,16 +8,16 @@ import styles from '../styles.module.css'
 const FeatureList: FC = () => {
 	return (
 		<div className={styles.feature__list}>
-			<FeatureCard title=''>
+			<FeatureCard title='SOC 2 and GDPR aligned'>
 				<Secure />
 			</FeatureCard>
-			<FeatureCard title=''>
+			<FeatureCard title='Institution-ready compliance posture'>
 				<Complaints />
 			</FeatureCard>
-			<FeatureCard title=''>
+			<FeatureCard title='Multi-region secure infrastructure'>
 				<Support />
 			</FeatureCard>
-			<FeatureCard title=''>
+			<FeatureCard title='Access and backup controls'>
 				<Control />
 			</FeatureCard>
 		</div>
