@@ -24,7 +24,7 @@ const Customers: FC = () => {
 					<CustomerList />
 
 					<div className={styles.link__container}>
-						<Link href='/' className={styles.link}>
+						<Link href='/view-institutations' className={styles.link}>
 							<span className={styles.link__text}> View institutions → </span>
 							<ChevronRight />
 						</Link>

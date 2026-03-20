@@ -5,9 +5,9 @@
 
 .marquee .marquee__container {
 	--Marquee-shadow-size: 16px;
-	--Marquee-duration: 6s;
+	--Marquee-duration: 22s;
 
-	@apply relative overflow-hidden flex gap-6 select-none max-w-full;
+	@apply relative overflow-hidden select-none max-w-full;
 	mask-image: linear-gradient(
 		to right,
 		var(--mask-off) 0,
@@ -20,31 +20,18 @@
 }
 
 .marquee .marquee__container .marquee__inner__container {
-	@apply flex flex-shrink-0 max-w-full gap-[var(--Marquee-gap)];
+	@apply flex w-max gap-[var(--Marquee-gap)];
 	animation: Marquee_scroll var(--Marquee-duration) linear infinite;
 }
-
-/* .marquee .marquee__container .marquee__inner__container:nth-child(2) {
-	@apply absolute top-0 left-0 flex flex-shrink-0 max-w-full gap-[var(--Marquee-gap)];
-	animation: Marquee_scroll_abs var(--Marquee-duration) linear infinite;
-} */
 .marquee .marquee__container .marquee__inner__container svg {
 	@apply flex-shrink-0 fill-[var(--color-text-primary)] max-w-[120px];
 }
 
 @keyframes Marquee_scroll {
 	0% {
-		transform: translate3d(0%, 0, 0);
+		transform: translate3d(0, 0, 0);
 	}
 	100% {
-		transform: translate3d(-100%, 0, 0);
-	}
-}
-@keyframes Marquee_scroll_abs {
-	0% {
-		transform: translateX(calc(100% + var(--Marquee-gap)));
-	}
-	100% {
-		transform: translateX(0);
+		transform: translate3d(-50%, 0, 0);
 	}
 }

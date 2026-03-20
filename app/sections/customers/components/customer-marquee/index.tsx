@@ -8,28 +8,28 @@ const institutions = [
 ]
 
 const CustomerMarquee: FC = () => {
+	const marqueeItems = [...institutions, ...institutions]
+
 	return (
 		<div className={styles.marquee}>
 			<div className={styles.marquee__container}>
-				{[1, 2].map((key) => (
-					<div key={key} className={styles.marquee__inner__container}>
-						{institutions.map((name) => (
-							<span
-								key={name}
-								style={{
-									fontWeight: 600,
-									fontSize: '0.9rem',
-									letterSpacing: '0.02em',
-									color: 'rgba(255,255,255,0.65)',
-									whiteSpace: 'nowrap',
-									padding: '0 2rem',
-								}}
-							>
-								{name}
-							</span>
-						))}
-					</div>
-				))}
+				<div className={styles.marquee__inner__container}>
+					{marqueeItems.map((name, index) => (
+						<span
+							key={`${name}-${index}`}
+							style={{
+								fontWeight: 600,
+								fontSize: '0.9rem',
+								letterSpacing: '0.02em',
+								color: 'rgba(255,255,255,0.65)',
+								whiteSpace: 'nowrap',
+								padding: '0 2rem',
+							}}
+						>
+							{name}
+						</span>
+					))}
+				</div>
 			</div>
 		</div>
 	)
