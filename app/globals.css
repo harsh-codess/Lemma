@@ -35,7 +35,7 @@ body::-webkit-scrollbar {
 }
 
 :root {
-	--header-height: 64px;
+	--header-height: 102px;
 	--header-blur: 12px;
 	--header-bg: hsla(0, 0%, 100%, 0.01);
 	--header-border: hsla(0, 0%, 100%, 0.08);
@@ -138,10 +138,16 @@ body::-webkit-scrollbar {
 	--color-green: #4cb782;
 	--color-lime-green: #68cc58;
 	--color-orange: #f2994a;
-	--color-yellow: #f2c94c;
-	--color-purple: #5e6ad2;
-	--focus-ring-color: var(--color-brand-bg);
-	--focus-ring-width: 2px;
+		--color-yellow: #f2c94c;
+		--color-purple: #5e6ad2;
+		--color-1: 330 100% 40%;
+		--color-2: 140 100% 55%;
+		--color-3: 210 100% 30%;
+		--color-4: 60 100% 70%;
+		--color-5: 295 100% 45%;
+		--brand: 50 100% 50%;
+		--focus-ring-color: var(--color-brand-bg);
+		--focus-ring-width: 2px;
 	--focus-ring-offset: 2px;
 	--focus-ring-outline: var(--focus-ring-width) solid var(--focus-ring-color);
 	--pointer: pointer;
@@ -195,8 +201,17 @@ body::-webkit-scrollbar {
 		0px 3px 2px 0px rgba(0, 0, 0, 0.04), 0px 1px 1px 0px rgba(0, 0, 0, 0.07),
 		0px 0px 1px 0px rgba(0, 0, 0, 0.08);
 	--icon-grayscale-image-filter: grayscale(100%) brightness(400%);
-	--bento-border: hsla(0, 0%, 100%, 0.03);
-}
+		--bento-border: hsla(0, 0%, 100%, 0.03);
+	}
+
+	.dark {
+		--color-1: 330 100% 40%;
+		--color-2: 140 100% 55%;
+		--color-3: 210 100% 30%;
+		--color-4: 60 100% 70%;
+		--color-5: 295 100% 45%;
+		--brand: 50 100% 50%;
+	}
 
 @media (max-width: 768px) {
 	:root {
@@ -210,8 +225,20 @@ body::-webkit-scrollbar {
 		--page-padding-default: 40px;
 		--grid-columns: 4;
 		--grid-column-gap: 24px;
+		--header-height: 96px;
 		--header-top: 8px;
 		--header-max-width: calc(var(--page-max-width) + 16px);
 		--header-max-width: unset;
+	}
+}
+
+@layer utilities {
+	.no-scrollbar {
+		-ms-overflow-style: none;
+		scrollbar-width: none;
+	}
+
+	.no-scrollbar::-webkit-scrollbar {
+		display: none;
 	}
 }

@@ -1,80 +1,77 @@
-import React, { FC } from 'react'
-import SidebarControls from '@/assets/sidebar-controls.svg'
-import SidebarLogo from '@/assets/sidebar-logo.svg'
-import SidebarEdit from '@/assets/sidebar-edit.svg'
-import InboxMyIssue from '@/assets/inbox-my-issue.svg'
-import Workspace from '@/assets/workspace.svg'
-import Favourite from '@/assets/favourite.svg'
-import Yourspace from '@/assets/your-team.svg'
-import OtherTeams from '@/assets/other-teams.svg'
+import { type FC } from 'react'
 import styles from './styles.module.css'
 import IllustrateAnimate from '@/components/illustrate-animate'
+
+const workflowSteps = [
+	{ label: 'Paper Reader', meta: 'TRL + domain', active: true, delay: 2.55 },
+	{ label: 'Market Scout', meta: 'signals + patents', delay: 2.35 },
+	{ label: 'Feasibility', meta: 'team + capital', delay: 2.15 },
+	{ label: 'Deck Builder', meta: 'investor outputs', delay: 1.95 },
+]
 
 const Sidebar: FC = () => {
 	return (
 		<div className={styles.sidebar}>
-			<div className={styles.top__container}>
-				<IllustrateAnimate
-					delay={2.9}
-					// duration={3.5}
-					className={styles.dot__container}>
+			<IllustrateAnimate delay={2.9} className={styles.top__container}>
+				<div className={styles.dot__container}>
 					<div />
 					<div />
 					<div />
-				</IllustrateAnimate>
-				<IllustrateAnimate
-					delay={2.7}
-					// duration={3.55}
-					className={styles.illustrate__animate}>
-					<SidebarControls />
-				</IllustrateAnimate>
-			</div>
+				</div>
 
-			<div className={styles.sidebar__header__container}>
-				<IllustrateAnimate
-					delay={2.5}
-					// duration={3}
-					className={styles.illustrate__animate}>
-					<SidebarLogo />
-				</IllustrateAnimate>
-				<IllustrateAnimate
-					// duration={3.6}
-					delay={2.3}
-					className={styles.illustrate__animate}>
-					<SidebarEdit />
-				</IllustrateAnimate>
-			</div>
+				<div className={styles.top__badge}>Lemma OS</div>
+			</IllustrateAnimate>
+
+			<IllustrateAnimate delay={2.72} className={styles.sidebar__header__container}>
+				<p className={styles.eyebrow}>Commercialization workflow</p>
+				<h3 className={styles.title}>From paper to venture</h3>
+				<p className={styles.subtitle}>
+					Five agents convert research into a startup-ready narrative.
+				</p>
+			</IllustrateAnimate>
 
 			<div className={styles.sidebar__dropdown__outter__container}>
-				<IllustrateAnimate
-					delay={2.1}
-					// duration={3}
-					className={styles.illustrate__animate}>
-					<InboxMyIssue />
+				{workflowSteps.map((step) => (
+					<IllustrateAnimate
+						key={step.label}
+						delay={step.delay}
+						className={step.active ? styles.navItemActive : styles.navItem}>
+						<div className={styles.navItem__left}>
+							<span className={styles.navItem__indicator} />
+							<div>
+								<p className={styles.navItem__label}>{step.label}</p>
+								<p className={styles.navItem__meta}>{step.meta}</p>
+							</div>
+						</div>
+
+						<span className={styles.navItem__status}>
+							{step.active ? 'Live' : 'Queued'}
+						</span>
+					</IllustrateAnimate>
+				))}
+			</div>
+
+			<div className={styles.bottom__container}>
+				<IllustrateAnimate delay={1.72} className={styles.infoCard}>
+					<p className={styles.infoCard__label}>Evidence stack</p>
+					<div className={styles.metricRow}>
+						<span>papers parsed</span>
+						<strong>14</strong>
+					</div>
+					<div className={styles.metricRow}>
+						<span>sources linked</span>
+						<strong>37</strong>
+					</div>
+					<div className={styles.metricRow}>
+						<span>confidence</span>
+						<strong className={styles.metricAccent}>82%</strong>
+					</div>
 				</IllustrateAnimate>
-				<IllustrateAnimate
-					delay={1.9}
-					// duration={2.8}
-					className={styles.illustrate__animate}>
-					<Workspace />
-				</IllustrateAnimate>
-				<IllustrateAnimate
-					delay={1.7}
-					// duration={2.6}
-					className={styles.illustrate__animate}>
-					<Favourite />
-				</IllustrateAnimate>
-				<IllustrateAnimate
-					delay={1.5}
-					// duration={2.4}
-					className={styles.illustrate__animate}>
-					<Yourspace />
-				</IllustrateAnimate>
-				<IllustrateAnimate
-					delay={1.3}
-					// duration={2.2}
-					className={styles.illustrate__animate}>
-					<OtherTeams />
+
+				<IllustrateAnimate delay={1.48} className={styles.chipCard}>
+					<span>traceable</span>
+					<span>source-backed</span>
+					<span>fundable</span>
 				</IllustrateAnimate>
 			</div>
 		</div>

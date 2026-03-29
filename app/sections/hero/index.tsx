@@ -1,26 +1,50 @@
 import { type FC } from 'react'
+import dynamic from 'next/dynamic'
 import styles from './styles.module.css'
 import LayoutWrapper from '@/components/layout-wrapper'
-import BlurPopUpByWord from '@/components/blur-pop-up-by-words'
 import { cn } from '@/lib/utils'
 import BlurPopUp from '@/components/blur-pop-up'
 import Link from 'next/link'
 import { ChevronRight } from 'lucide-react'
-import Inbox from '@/assets/inbox.svg'
 import Sidebar from './components/sidebar'
-import IllustrateAnimate from '@/components/illustrate-animate'
+import WorkspacePanel from './components/workspace-panel'
+
+const AnimatedTextCycle = dynamic(() => import('@/components/ui/animated-text-cycle'), {
+	ssr: false,
+	loading: () => <span className={styles.heading__cycle}>startup</span>,
+})
 
 const Hero: FC = () => {
 	return (
 		<section className={styles.hero}>
 			<LayoutWrapper>
-				<h1 className={cn(styles.heading, styles.hide__mobile)}>
-					<BlurPopUpByWord text='Lemma turns your research into a fundable startup' />
-				</h1>
+				<BlurPopUp delay={0.2}>
+					<h1 className={cn(styles.heading, styles.hide__mobile)}>
+						<span className={styles.heading__line}>Lemma turns your research</span>
+						<span className={styles.heading__line}>
+							into a fundable{' '}
+							<AnimatedTextCycle
+								words={['startup', 'spinout', 'venture', 'company']}
+								interval={2600}
+								className={styles.heading__cycle}
+							/>
+						</span>
+					</h1>
+				</BlurPopUp>
 
-				<h1 className={cn(styles.heading, styles.show__mobile, 'text-center')}>
-					<BlurPopUpByWord text='Turn your research into a startup' />
-				</h1>
+				<BlurPopUp delay={0.2}>
+					<h1 className={cn(styles.heading, styles.show__mobile, 'text-center')}>
+						<span className={styles.heading__line}>Turn your research</span>
+						<span className={styles.heading__line}>
+							into a{' '}
+							<AnimatedTextCycle
+								words={['startup', 'spinout', 'venture', 'company']}
+								interval={2600}
+								className={styles.heading__cycle}
+							/>
+						</span>
+					</h1>
+				</BlurPopUp>
 
 				<BlurPopUp delay={1}>
 					<h2 className={cn(styles.sub__heading, styles.hide__mobile)}>
@@ -42,7 +66,7 @@ const Hero: FC = () => {
 					</BlurPopUp>
 
 					<BlurPopUp delay={1.15}>
-						<Link className={styles.intoducing__link} href='#'>
+						<Link className={styles.intoducing__link} href='/method'>
 							<span>See how it works →</span>
 							<ChevronRight />
 						</Link>
@@ -52,19 +76,16 @@ const Hero: FC = () => {
 				<div className={styles.hero__img__container}>
 					<div className={styles.hero__illustration__container}>
 						<div className={styles.hero__illustration__perspective}>
-							<div className={styles.hero__illustration__base}>
-								<div className={styles.hero__illustration__sidebar}>
-									<Sidebar />
+								<div className={styles.hero__illustration__base}>
+									<div className={styles.hero__illustration__sidebar}>
+										<Sidebar />
+									</div>
+									<div className={styles.hero__illustration__inbox}>
+										<WorkspacePanel />
+									</div>
 								</div>
-								<IllustrateAnimate
-									delay={2}
-									duration={1.4}
-									className={styles.hero__illustration__inbox}>
-									<Inbox />
-								</IllustrateAnimate>
 							</div>
 						</div>
-					</div>
 				</div>
 			</LayoutWrapper>
 		</section>

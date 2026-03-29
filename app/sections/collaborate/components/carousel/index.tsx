@@ -1,7 +1,17 @@
-import { type FC } from 'react'
+'use client'
+
+import { type FC, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import styles from './styles.module.css'
 import CarouselCard from '../carouselCard'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import Link from 'next/link'
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from '@/components/ui/dialog'
 
 // Shared base styles for the mini text-UI blocks inside each card
 const row = {
@@ -116,29 +126,219 @@ const CardContent6 = () => (
 	</div>
 )
 
+type CardItem = {
+	title: string
+	description: string
+	content: ReactNode
+	eyebrow: string
+	detailHeading: string
+	detailBody: string
+}
+
 const Carousel: FC = () => {
+	const scrollRef = useRef<HTMLDivElement>(null)
+	const [activeCardIndex, setActiveCardIndex] = useState<number | null>(null)
+	const [canScrollPrev, setCanScrollPrev] = useState(false)
+	const [canScrollNext, setCanScrollNext] = useState(true)
+
+	const cards: CardItem[] = [
+		{
+			title: 'Feasibility matrix',
+			description: 'Team size and expertise required',
+			content: <CardContent1 />,
+			eyebrow: 'Execution planning',
+			detailHeading: 'See the operating requirements before you build.',
+			detailBody:
+				'Lemma translates the paper and market readout into a practical execution plan, so founders can understand what team mix, timeline, and operating scope the startup actually needs.',
+		},
+		{
+			title: 'Capital estimate',
+			description: 'Rough funding requirement',
+			content: <CardContent2 />,
+			eyebrow: 'Funding readiness',
+			detailHeading: 'Estimate the capital path from grant to venture.',
+			detailBody:
+				'This view turns technical ambition into a financing path, from pre-seed assumptions and grant opportunities through the larger raise needed to reach commercialization milestones.',
+		},
+		{
+			title: 'Pitch deck',
+			description: 'PDF, PowerPoint, and Word',
+			content: <CardContent3 />,
+			eyebrow: 'Investor materials',
+			detailHeading: 'Generate a deck that matches the research story.',
+			detailBody:
+				'Lemma packages the research, market signals, and funding ask into a clean investor narrative with the core slides already structured for conversations with grants, angels, and venture funds.',
+		},
+		{
+			title: 'TRL/IRL scorecard',
+			description: 'Full scoring report',
+			content: <CardContent4 />,
+			eyebrow: 'Readiness scoring',
+			detailHeading: 'Review the full commercialization scorecard.',
+			detailBody:
+				'Each readiness output stays grounded in evidence, giving researchers a way to inspect the logic behind the score instead of trusting a black-box recommendation.',
+		},
+		{
+			title: 'Market brief',
+			description: 'Competitor and signal summary',
+			content: <CardContent5 />,
+			eyebrow: 'Market intelligence',
+			detailHeading: 'Condense noisy market data into a clean brief.',
+			detailBody:
+				'The market brief summarizes competitor density, growth signals, patent activity, and funding momentum into a format that can directly support the startup thesis.',
+		},
+		{
+			title: 'Investor matches',
+			description: 'Ranked by thesis fit',
+			content: <CardContent6 />,
+			eyebrow: 'Fundraising fit',
+			detailHeading: 'Match the startup thesis to the right capital sources.',
+			detailBody:
+				'Instead of a generic investor list, Lemma can frame likely matches by thesis, sector comfort, and funding style so outreach starts from relevance.',
+		},
+	]
+
+	const updateScrollState = useCallback(() => {
+		const node = scrollRef.current
+
+		if (!node) {
+			return
+		}
+
+		setCanScrollPrev(node.scrollLeft > 8)
+		setCanScrollNext(node.scrollLeft + node.clientWidth < node.scrollWidth - 8)
+	}, [])
+
+	useEffect(() => {
+		const node = scrollRef.current
+
+		if (!node) {
+			return
+		}
+
+		updateScrollState()
+
+		node.addEventListener('scroll', updateScrollState, { passive: true })
+		window.addEventListener('resize', updateScrollState)
+
+		return () => {
+			node.removeEventListener('scroll', updateScrollState)
+			window.removeEventListener('resize', updateScrollState)
+		}
+	}, [updateScrollState])
+
+	const scrollByCard = useCallback((direction: -1 | 1) => {
+		const node = scrollRef.current
+
+		if (!node) {
+			return
+		}
+
+		const firstCard = node.querySelector<HTMLElement>('[data-carousel-card]')
+		const cardWidth = firstCard?.getBoundingClientRect().width ?? 336
+		const gap = 8
+
+		node.scrollBy({
+			left: direction * (cardWidth + gap),
+			behavior: 'smooth',
+		})
+	}, [])
+
+	const activeCard = activeCardIndex === null ? null : cards[activeCardIndex]
+
 	return (
-		<div>
-			<div className={styles.carousel__container}>
-				<div className={styles.carousel__inner__container}>
-					<CarouselCard title='Feasibility matrix' description='Team size and expertise required' content={<CardContent1 />} />
-					<CarouselCard title='Capital estimate' description='Rough funding requirement' content={<CardContent2 />} />
-					<CarouselCard title='Pitch deck' description='PDF, PowerPoint, and Word' content={<CardContent3 />} />
-					<CarouselCard title='TRL/IRL scorecard' description='Full scoring report' content={<CardContent4 />} />
-					<CarouselCard title='Market brief' description='Competitor and signal summary' content={<CardContent5 />} />
-					<CarouselCard title='Investor matches' description='Ranked by thesis fit' content={<CardContent6 />} />
+		<>
+			<div>
+				<div className={styles.carousel__container} ref={scrollRef}>
+					<div className={styles.carousel__inner__container}>
+						{cards.map((card, index) => (
+							<CarouselCard
+								key={card.title}
+								title={card.title}
+								description={card.description}
+								content={card.content}
+								onOpen={() => setActiveCardIndex(index)}
+							/>
+						))}
+					</div>
+				</div>
+
+				<div className={styles.card__controls__container}>
+					<button
+						type='button'
+						className={styles.icon__button}
+						onClick={() => scrollByCard(-1)}
+						disabled={!canScrollPrev}
+						aria-label='Scroll carousel left'>
+						<ChevronLeft size={16} />
+					</button>
+					<button
+						type='button'
+						className={styles.icon__button}
+						onClick={() => scrollByCard(1)}
+						disabled={!canScrollNext}
+						aria-label='Scroll carousel right'>
+						<ChevronRight size={16} />
+					</button>
 				</div>
 			</div>
 
-			<div className={styles.card__controls__container}>
-				<button className={styles.icon__button}>
-					<ChevronLeft size={16} />
-				</button>
-				<button className={styles.icon__button}>
-					<ChevronRight size={16} />
-				</button>
-			</div>
-		</div>
+			<Dialog
+				open={activeCardIndex !== null}
+				onOpenChange={(open) => {
+					if (!open) {
+						setActiveCardIndex(null)
+					}
+				}}>
+				<DialogContent className='max-w-4xl overflow-hidden border-[var(--color-border-secondary)] bg-[var(--color-bg-secondary)] p-0 text-[var(--color-text-primary)] shadow-[var(--shadow-high)] sm:rounded-[28px]'>
+					{activeCard && (
+						<div className='grid gap-0 md:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]'>
+							<div className='border-b border-[var(--color-border-primary)] bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))] p-6 md:border-b-0 md:border-r md:p-8'>
+								<div className='rounded-[24px] border border-[var(--color-border-secondary)] bg-[var(--color-bg-primary)] p-6'>
+									{activeCard.content}
+								</div>
+							</div>
+
+							<div className='flex flex-col justify-between gap-8 p-6 md:p-8'>
+								<DialogHeader className='space-y-4 text-left'>
+									<span className='text-[12px] font-semibold uppercase tracking-[0.22em] text-[var(--color-text-quaternary)]'>
+										{activeCard.eyebrow}
+									</span>
+									<DialogTitle className='text-[28px] font-medium leading-[1.05] tracking-[-0.025em] text-[var(--color-text-primary)]'>
+										{activeCard.title}
+									</DialogTitle>
+									<DialogDescription className='text-[16px] font-medium leading-[1.6] text-[var(--color-text-tertiary)]'>
+										{activeCard.description}
+									</DialogDescription>
+								</DialogHeader>
+
+								<div className='space-y-4'>
+									<p className='text-[20px] font-medium leading-[1.25] tracking-[-0.02em] text-[var(--color-text-primary)]'>
+										{activeCard.detailHeading}
+									</p>
+									<p className='text-[15px] leading-[1.7] text-[var(--color-text-secondary)]'>
+										{activeCard.detailBody}
+									</p>
+								</div>
+
+								<div className='flex flex-col gap-3 sm:flex-row'>
+									<Link
+										href='/sign-in'
+										className='inline-flex h-11 items-center justify-center rounded-[12px] bg-[#e6e6e6] px-4 text-[15px] font-medium text-[var(--color-bg-primary)] shadow-[var(--shadow-stack-low)] transition-colors hover:bg-white'>
+										Analyze my paper
+									</Link>
+									<Link
+										href='/method'
+										className='inline-flex h-11 items-center justify-center rounded-[12px] bg-[var(--color-bg-quaternary)] px-4 text-[15px] font-medium text-[var(--color-text-primary)] transition-colors hover:brightness-110'>
+										View method
+									</Link>
+								</div>
+							</div>
+						</div>
+					)}
+				</DialogContent>
+			</Dialog>
+		</>
 	)
 }
 

@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import { ClerkProvider } from '@clerk/nextjs'
-import Header from '@/components/header'
-import Footer from '@/components/footer'
+import SiteShell from '@/components/site-shell'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -18,9 +17,7 @@ export default function RootLayout({
 		<ClerkProvider>
 			<html lang='en'>
 				<body>
-					<Header />
-					{children}
-					<Footer />
+					<SiteShell>{children}</SiteShell>
 				</body>
 			</html>
 		</ClerkProvider>

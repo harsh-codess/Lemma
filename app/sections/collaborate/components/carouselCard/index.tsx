@@ -6,15 +6,17 @@ type CarouselCardProps = {
 	title?: string
 	description?: string
 	content?: ReactNode
+	onOpen?: () => void
 }
 
 const CarouselCard: FC<CarouselCardProps> = ({
 	title = 'Feasibility matrix',
 	description = 'Team size and expertise required',
 	content,
+	onOpen,
 }) => {
 	return (
-		<div className={styles.card}>
+		<div className={styles.card} data-carousel-card>
 			{/* Background text-UI layer replacing image */}
 			<div className={styles.img__container}>
 				<div className={styles.img__wrapper} style={{ height: '100%', alignItems: 'flex-start', padding: '1.5rem 1.25rem' }}>
@@ -28,11 +30,15 @@ const CarouselCard: FC<CarouselCardProps> = ({
 					<p> {description} </p>
 				</div>
 
-				<button className={styles.icon__button}>
-					<Plus />
-				</button>
+					<button
+						type='button'
+						className={styles.icon__button}
+						onClick={onOpen}
+						aria-label={`Open details for ${title}`}>
+						<Plus />
+					</button>
+				</div>
 			</div>
-		</div>
 	)
 }
 

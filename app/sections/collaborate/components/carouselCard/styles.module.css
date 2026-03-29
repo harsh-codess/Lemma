@@ -34,7 +34,7 @@
 }
 
 .icon__button {
-	@apply flex justify-center items-center text-base text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] rounded-full w-10 h-10 p-4 border-2 border-[var(--color-bg-secondary)] bg-[var(--color-bg-primary)] hover:bg-[var(--color-bg-secondary)] transition-colors;
+	@apply flex justify-center items-center text-base text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] rounded-full w-10 h-10 p-4 border-2 border-[var(--color-bg-secondary)] bg-[var(--color-bg-primary)] hover:bg-[var(--color-bg-secondary)] transition-colors cursor-pointer;
 }
 
 .icon__button svg {

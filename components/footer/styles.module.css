@@ -20,7 +20,11 @@
 }
 
 .left__container .logo {
-	@apply fill-[var(--color-text-primary)] mr-2;
+	@apply mr-2 h-10 w-10 rounded-[12px] shadow-[var(--shadow-stack-low)];
+}
+
+.left__container .logo__wordmark {
+	@apply text-[var(--color-text-primary)];
 }
 
 .left__container .logo__link .hide__mobile {

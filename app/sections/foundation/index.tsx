@@ -6,6 +6,7 @@ import { foundationList } from '@/lib/constant'
 import UnderTheHood from '@/assets/underToHood.svg'
 import styles from './styles.module.css'
 import LayoutWrapper from '@/components/layout-wrapper'
+import { GradientText } from '@/components/ui/gradient-text'
 
 const Foundation: FC = () => {
 	return (
@@ -13,10 +14,18 @@ const Foundation: FC = () => {
 			<LayoutWrapper>
 				<div className={styles.inner__container}>
 					<div className={styles.heading__container}>
-						<SectionHeading
-							badgeText='Built for research you haven&apos;t published yet'
-							heading='Your data is as protected as your ideas'
-						/>
+							<SectionHeading
+								badgeText='Built for research you haven&apos;t published yet'
+								heading={
+									<>
+										Your data is as{' '}
+										<GradientText className='bg-transparent text-white dark:bg-transparent'>
+											protected
+										</GradientText>{' '}
+										as your ideas
+									</>
+								}
+							/>
 
 						<p>
 							{' '}

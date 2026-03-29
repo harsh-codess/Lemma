@@ -1,206 +1,224 @@
 'use client'
-import { useState, type FC } from 'react'
+
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { cn } from '@/lib/utils'
-import { Menu, X } from 'lucide-react'
+import { SignedIn, SignedOut, UserButton, useUser } from '@clerk/nextjs'
+import { usePathname } from 'next/navigation'
 import styles from './styles.module.css'
 import {
-	SignInButton,
-	SignUpButton,
-	SignedIn,
-	SignedOut,
-	UserButton,
-} from '@clerk/nextjs'
+	SecondaryNavbar,
+	SimpleNavbar,
+} from '@/components/ui/core-header-navbar'
+import { siteNavItems } from '@/lib/constant'
+import { cn } from '@/lib/utils'
 
-const Header: FC = () => {
-	const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+const getPageTitle = (pathname: string | null) => {
+	if (!pathname || pathname === '/') {
+		return 'Home'
+	}
 
-	const closeMobileMenu = () => setIsMobileMenuOpen(false)
+	if (pathname.startsWith('/sign-in')) {
+		return 'Sign In'
+	}
+
+	if (pathname.startsWith('/sign-up')) {
+		return 'Sign Up'
+	}
+
+	if (pathname.startsWith('/institutions')) {
+		return 'Institutions'
+	}
+
+	if (pathname.startsWith('/learn-more/domain-classification')) {
+		return 'Domain Classification'
+	}
+
+	if (pathname.startsWith('/method')) {
+		return 'Method'
+	}
+
+	if (pathname.startsWith('/legal/msa')) {
+		return 'MSA'
+	}
+
+	if (pathname.startsWith('/legal/product-terms')) {
+		return 'Product Terms'
+	}
+
+	if (pathname.startsWith('/legal/privacy-notice')) {
+		return 'Privacy Notice'
+	}
+
+	if (pathname.startsWith('/legal/cookie-notice')) {
+		return 'Cookie Notice'
+	}
+
+	if (pathname.startsWith('/legal')) {
+		return 'Legal Hub'
+	}
+
+	return 'Lemma'
+}
+
+const getActiveNavHref = (pathname: string | null) => {
+	if (!pathname) {
+		return '/'
+	}
+
+	if (pathname === '/') {
+		return '/'
+	}
+
+	if (pathname.startsWith('/institutions')) {
+		return '/institutions'
+	}
+
+	if (
+		pathname.startsWith('/method') ||
+		pathname.startsWith('/learn-more/domain-classification')
+	) {
+		return '/method'
+	}
+
+	if (pathname.startsWith('/legal/msa')) {
+		return '/legal/msa'
+	}
+
+	if (pathname.startsWith('/legal/product-terms')) {
+		return '/legal/product-terms'
+	}
+
+	if (pathname.startsWith('/legal/privacy-notice')) {
+		return '/legal/privacy-notice'
+	}
+
+	if (pathname.startsWith('/legal/cookie-notice')) {
+		return '/legal/cookie-notice'
+	}
+
+	if (pathname.startsWith('/legal')) {
+		return '/legal'
+	}
+
+	return ''
+}
+
+const Header = () => {
+	const pathname = usePathname()
+	const { user } = useUser()
+	const [isHeaderHidden, setIsHeaderHidden] = useState(false)
+	const lastScrollYRef = useRef(0)
+
+	const isHomePage = pathname === '/'
+	const isSignInRoute = pathname?.startsWith('/sign-in')
+	const isSignUpRoute = pathname?.startsWith('/sign-up')
+	const pageTitle = getPageTitle(pathname)
+	const activeNavHref = getActiveNavHref(pathname)
+	const userLabel =
+		user?.fullName || user?.firstName || user?.primaryEmailAddress?.emailAddress || 'Lemma'
+
+	useEffect(() => {
+		setIsHeaderHidden(false)
+
+		if (!isHomePage) {
+			lastScrollYRef.current = 0
+			return
+		}
+
+		const initialScrollY = window.scrollY
+		lastScrollYRef.current = initialScrollY
+
+		const handleScroll = () => {
+			const currentScrollY = window.scrollY
+			const scrollDelta = currentScrollY - lastScrollYRef.current
+
+			if (currentScrollY <= 24) {
+				setIsHeaderHidden(false)
+				lastScrollYRef.current = currentScrollY
+				return
+			}
+
+			if (Math.abs(scrollDelta) < 10) {
+				lastScrollYRef.current = currentScrollY
+				return
+			}
+
+			if (scrollDelta > 0 && currentScrollY > 140) {
+				setIsHeaderHidden(true)
+			}
+
+			if (scrollDelta < 0) {
+				setIsHeaderHidden(false)
+			}
+
+			lastScrollYRef.current = currentScrollY
+		}
+
+		window.addEventListener('scroll', handleScroll, { passive: true })
+
+		return () => {
+			window.removeEventListener('scroll', handleScroll)
+		}
+	}, [isHomePage])
 
 	return (
 		<div className={styles.header}>
-			{isMobileMenuOpen && (
-				<div className={styles.mobile__menu__backdrop} onClick={closeMobileMenu} />
-			)}
-			<div className={styles.header__blur__mask}></div>
-			<div className={styles.header__overlay}></div>
+			<div
+				className={cn(
+					styles.header__blur__mask,
+					isHeaderHidden && styles.header__blur__mask__hidden,
+				)}></div>
 			<header
 				className={cn(
 					styles.header__wrapper,
-					isMobileMenuOpen && styles.header__wrapper__open,
+					isHeaderHidden && styles.header__wrapper__hidden,
 				)}>
-				<nav className={styles.header__root}>
-					<div className='relative'>
-						<ul className={styles.header__list}>
-							<li className={cn(styles.header__logo, styles.header__item)}>
-								<Link
-									href='/'
-									onClick={closeMobileMenu}
-									className={styles.header__logo__link}
-									style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
-									<svg width="24" height="24" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-										<rect width="28" height="28" rx="7" fill="white"/>
-										<path d="M7 8 L11 8 L21 21" stroke="#0a0a0a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-										<path d="M15 14 L9 21" stroke="#0a0a0a" strokeWidth="2.2" strokeLinecap="round" fill="none"/>
-									</svg>
-									<span style={{ fontWeight: 700, fontSize: '16px', color: 'white', letterSpacing: '-0.3px' }}>Lemma</span>
-								</Link>
-							</li>
+				<SimpleNavbar
+					title={pageTitle}
+					trailingContent={
+						<>
+							<SignedOut>
+								<div className='flex items-center gap-2'>
+									{!isSignInRoute ? (
+										<Link
+											href='/sign-in'
+											className={styles.secondary__action}>
+											Log in
+										</Link>
+									) : null}
 
-							<li className={cn(styles.hide__mobile, styles.header__trigger)}>
-								<Link className={styles.header__link} href='#'>
-									{' '}
-									Features{' '}
-								</Link>
-							</li>
-
-							<li className={cn(styles.hide__laptop, styles.header__item)}>
-								<Link className={styles.header__link} href='#'>
-									{' '}
-									Method{' '}
-								</Link>
-							</li>
-
-							<li className={cn(styles.hide__laptop, styles.header__item)}>
-								<Link className={styles.header__link} href='#'>
-									{' '}
-									Customers{' '}
-								</Link>
-							</li>
-
-							<li className={cn(styles.hide__tablet, styles.header__item)}>
-								<Link className={styles.header__link} href='#'>
-									{' '}
-									Changelog{' '}
-								</Link>
-							</li>
-
-							<li className={cn(styles.hide__mobile, styles.header__item)}>
-								<Link className={styles.header__link} href='#'>
-									{' '}
-									Pricing{' '}
-								</Link>
-							</li>
-
-							<li className={cn(styles.hide__mobile, styles.header__trigger)}>
-								<Link className={styles.header__link} href='#'>
-									{' '}
-									Company{' '}
-								</Link>
-							</li>
-
-							<li className={cn(styles.hide__tablet, styles.header__item)}>
-								<Link className={styles.header__link} href='#'>
-									{' '}
-									Contact{' '}
-								</Link>
-							</li>
-
-							<li
-								className={cn(
-									styles.header__item,
-									styles.header__button,
-									styles.header__login,
-									styles.hide__mobile,
-								)}>
-								<SignedOut>
-									<SignInButton mode='redirect'>
-										<button className={cn(styles.header__link, styles.button__login)}>
-											Log in <kbd className={styles.header__kbd}>L</kbd>
-										</button>
-									</SignInButton>
-								</SignedOut>
-								<SignedIn>
-									<UserButton afterSignOutUrl='/' />
-								</SignedIn>
-							</li>
-
-							<li
-								className={cn(
-									styles.header__item,
-									styles.header__button,
-									styles.header__signup,
-									styles.hide__mobile,
-								)}>
-								<SignedOut>
-									<SignUpButton mode='redirect'>
-										<button className={cn(styles.header__link, styles.button__signup)}>
+									{!isSignUpRoute ? (
+										<Link
+											href='/sign-up'
+											className={styles.primary__action}>
 											Sign up
-										</button>
-									</SignUpButton>
-								</SignedOut>
-							</li>
+										</Link>
+									) : null}
+								</div>
+							</SignedOut>
 
-							<li
-								className={cn(
-									styles.header__item,
-									styles.header__button,
-									styles.header__menu,
-								)}>
-								<button
-									className={styles.mobile__menu__button}
-									type='button'
-									aria-label='Toggle mobile menu'
-									aria-expanded={isMobileMenuOpen}
-									onClick={() => setIsMobileMenuOpen((prev) => !prev)}>
-									{isMobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
-								</button>
-							</li>
-						</ul>
-
-						{isMobileMenuOpen && (
-							<>
-								<div className={styles.mobile__menu}>
-									<div className={styles.mobile__menu__title}>Menu</div>
-									<Link className={styles.mobile__menu__link} href='#' onClick={closeMobileMenu}>
-										Features
-									</Link>
-									<Link className={styles.mobile__menu__link} href='#' onClick={closeMobileMenu}>
-										Method
-									</Link>
-									<Link className={styles.mobile__menu__link} href='#' onClick={closeMobileMenu}>
-										Customers
-									</Link>
-									<Link className={styles.mobile__menu__link} href='#' onClick={closeMobileMenu}>
-										Changelog
-									</Link>
-									<Link className={styles.mobile__menu__link} href='#' onClick={closeMobileMenu}>
-										Pricing
-									</Link>
-									<Link className={styles.mobile__menu__link} href='#' onClick={closeMobileMenu}>
-										Company
-									</Link>
-									<Link className={styles.mobile__menu__link} href='#' onClick={closeMobileMenu}>
-										Contact
-									</Link>
-									<div className={styles.mobile__menu__actions}>
-										<SignedOut>
-											<SignInButton mode='redirect'>
-												<button
-													onClick={closeMobileMenu}
-													className={cn(styles.mobile__action__button, styles.mobile__action__secondary)}>
-													Log in
-												</button>
-											</SignInButton>
-											<SignUpButton mode='redirect'>
-												<button
-													onClick={closeMobileMenu}
-													className={cn(styles.mobile__action__button, styles.mobile__action__primary)}>
-													Sign up
-												</button>
-											</SignUpButton>
-										</SignedOut>
-										<SignedIn>
-											<div className={styles.mobile__user__button}>
-												<UserButton afterSignOutUrl='/' />
-											</div>
-										</SignedIn>
+							<SignedIn>
+								<div className='flex items-center gap-3'>
+									<div className='hidden sm:flex flex-col items-end'>
+										<span className={styles.user__label}>{userLabel}</span>
+										<span className={styles.user__status}>Authenticated</span>
+									</div>
+									<div className={styles.user__button}>
+										<UserButton afterSignOutUrl='/' />
 									</div>
 								</div>
-							</>
-						)}
-					</div>
-				</nav>
+							</SignedIn>
+						</>
+					}
+				/>
+
+				<SecondaryNavbar
+					currentType={activeNavHref}
+					links={siteNavItems.map((item) => ({
+						name: item.label,
+						href: item.href,
+					}))}
+				/>
 			</header>
 		</div>
 	)

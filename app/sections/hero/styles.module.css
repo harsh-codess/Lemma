@@ -8,6 +8,14 @@
 	line-height: 1.1;
 }
 
+.hero .heading__line {
+	@apply block;
+}
+
+.hero .heading__cycle {
+	@apply inline-block bg-[linear-gradient(90deg,#ffffff,#b2c2ff)] bg-clip-text text-transparent;
+}
+
 .hero .hide__mobile {
 	@apply hidden sm:block;
 }
@@ -93,7 +101,9 @@
 }
 
 .hero__illustration__inbox {
-	@apply absolute left-[var(--Sidebar-width)] h-full;
+	@apply absolute h-full;
+	left: calc(var(--Sidebar-width) + 8px);
+	right: 8px;
 	inset-block: 8px;
 }
 

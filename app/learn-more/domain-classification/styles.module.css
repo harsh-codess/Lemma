@@ -59,7 +59,8 @@
 }
 
 .svgWrap {
-	@apply mt-8 rounded-xl border border-white/10 bg-[#0d0f11] p-5 sm:p-6 overflow-hidden;
+	@apply mt-8 rounded-xl border border-white/10 bg-[#0d0f11] p-4 sm:p-5 overflow-hidden flex items-center justify-center;
+	min-height: 220px;
 }
 
 .desktopOnly {
@@ -68,4 +69,9 @@
 
 .mobileOnly {
 	@apply block sm:hidden;
+}
+
+.svgWrap svg {
+	@apply block w-full h-auto mx-auto;
+	max-width: 100%;
 }

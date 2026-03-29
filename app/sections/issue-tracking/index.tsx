@@ -17,6 +17,7 @@ import WideCard from './components/wide-card'
 import BentoGridFeatureLookUpCard from '@/components/bento-grid/components/bento-grid-feature-lookup-card'
 import { issueTrackingFeatureLookup } from './feature-lookup-data'
 import LayoutWrapper from '@/components/layout-wrapper'
+import { GradientText } from '@/components/ui/gradient-text'
 
 const IssueTracking: FC = () => {
 	return (
@@ -24,11 +25,19 @@ const IssueTracking: FC = () => {
 			<LayoutWrapper>
 				<div className={styles.heading__container}>
 					<div className={styles.heading__inner__container}>
-						<SectionHeading
-							heading='Know your market before the investor asks'
-							badgeText='Market intelligence'
-							badgeStyle='bg-[#D4B144] border-none'
-						/>
+							<SectionHeading
+								heading={
+									<>
+										Know your{' '}
+										<GradientText className='bg-transparent text-white dark:bg-transparent'>
+											market
+										</GradientText>{' '}
+										before the investor asks
+									</>
+								}
+								badgeText='Market intelligence'
+								badgeStyle='bg-[#D4B144] border-none'
+							/>
 
 						<div>
 							<p>
@@ -42,12 +51,12 @@ const IssueTracking: FC = () => {
 			</LayoutWrapper>
 
 			<div className={styles.hero__img__wrapper}>
-				<Image
-					src='/issue-tracking-hero.png'
-					alt=''
-					width={3200}
-					height={1620}
-				/>
+					<Image
+						src='/issue-tracking-hero.svg'
+						alt='Angled market intelligence dashboard showing competitor landscape, funding signals, patents, and evidence-backed insights'
+						width={3200}
+						height={1620}
+					/>
 			</div>
 
 			<LayoutWrapper>

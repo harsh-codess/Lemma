@@ -1,11 +1,11 @@
-import { type FC } from 'react'
+import { type FC, type ReactNode } from 'react'
 import styles from './styles.module.css'
 import { cn } from '@/lib/utils'
 
 type Props = {
 	badgeText: string
 	badgeStyle?: string
-	heading: string
+	heading: ReactNode
 }
 
 const SectionHeading: FC<Props> = ({ badgeStyle, badgeText, heading }) => {

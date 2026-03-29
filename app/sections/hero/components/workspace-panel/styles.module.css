@@ -1,0 +1,306 @@
+.workspace {
+	@apply flex h-full w-full flex-col gap-4 px-5 py-4;
+	transform-style: preserve-3d;
+}
+
+.headerBar {
+	@apply flex items-center justify-between rounded-[20px] border px-5 py-4;
+	border-color: rgba(255, 255, 255, 0.08);
+	background:
+		radial-gradient(circle at top right, rgba(242, 201, 76, 0.14), transparent 34%),
+		linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.02));
+	transform-style: preserve-3d;
+}
+
+.headerBar__label {
+	@apply mb-1 text-[10px] font-semibold uppercase tracking-[0.2em];
+	color: rgba(255, 255, 255, 0.32);
+}
+
+.headerBar__title {
+	@apply text-[22px] font-medium leading-[1.05] tracking-[-0.04em] text-white;
+}
+
+.headerStats {
+	@apply flex items-stretch gap-2;
+}
+
+.headerStat,
+.headerStatAccent {
+	@apply flex min-w-[88px] flex-col justify-center rounded-[16px] border px-3 py-2;
+	background: rgba(255, 255, 255, 0.03);
+	border-color: rgba(255, 255, 255, 0.07);
+}
+
+.headerStat span,
+.headerStatAccent span {
+	@apply text-[10px] uppercase tracking-[0.18em];
+	color: rgba(255, 255, 255, 0.32);
+}
+
+.headerStat strong,
+.headerStatAccent strong {
+	@apply mt-1 text-[18px] font-semibold leading-none;
+	color: rgba(255, 255, 255, 0.88);
+}
+
+.headerStatAccent {
+	background: linear-gradient(180deg, rgba(110, 231, 183, 0.12), rgba(255, 255, 255, 0.04));
+	border-color: rgba(110, 231, 183, 0.2);
+}
+
+.headerStatAccent strong {
+	color: #6ee7b7;
+}
+
+.bodyGrid {
+	@apply grid flex-1 grid-cols-[minmax(0,1.2fr)_minmax(310px,0.8fr)] gap-4;
+	min-height: 0;
+	transform-style: preserve-3d;
+}
+
+.leftColumn,
+.rightColumn {
+	@apply flex min-h-0 flex-col gap-4;
+	transform-style: preserve-3d;
+}
+
+.paperCard,
+.evidenceCard,
+.marketCard,
+.deckCard {
+	@apply rounded-[24px] border p-4;
+	border-color: rgba(255, 255, 255, 0.08);
+	background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.015));
+	transform-style: preserve-3d;
+}
+
+.paperCard {
+	@apply flex-[1.05];
+	background:
+		radial-gradient(circle at 90% 10%, rgba(94, 106, 210, 0.22), transparent 32%),
+		linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015));
+}
+
+.evidenceCard {
+	@apply flex-[0.95];
+}
+
+.marketCard {
+	@apply flex-[0.92];
+	background:
+		radial-gradient(circle at 0% 100%, rgba(242, 201, 76, 0.16), transparent 38%),
+		linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015));
+}
+
+.deckCard {
+	@apply flex-[1.08];
+	background:
+		radial-gradient(circle at 100% 100%, rgba(110, 231, 183, 0.14), transparent 30%),
+		linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015));
+}
+
+.cardTop,
+.cardTopCompact {
+	@apply flex items-start justify-between gap-4;
+}
+
+.cardTop {
+	@apply mb-4;
+}
+
+.cardTopCompact {
+	@apply mb-3 items-center;
+}
+
+.cardLabel {
+	@apply text-[10px] font-semibold uppercase tracking-[0.2em];
+	color: rgba(255, 255, 255, 0.32);
+}
+
+.cardTitle {
+	@apply mt-1 max-w-[560px] text-[24px] font-medium leading-[1.1] tracking-[-0.04em] text-white;
+}
+
+.primaryBadge,
+.secondaryBadge {
+	@apply rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em];
+}
+
+.primaryBadge {
+	color: #f6dc87;
+	background: rgba(242, 201, 76, 0.09);
+	border-color: rgba(242, 201, 76, 0.16);
+}
+
+.secondaryBadge {
+	color: rgba(255, 255, 255, 0.55);
+	background: rgba(255, 255, 255, 0.04);
+	border-color: rgba(255, 255, 255, 0.08);
+}
+
+.abstractBox {
+	@apply rounded-[18px] border px-4 py-4;
+	border-color: rgba(255, 255, 255, 0.07);
+	background: rgba(255, 255, 255, 0.025);
+}
+
+.abstractBox p {
+	@apply text-[14px] leading-[1.65];
+	color: rgba(255, 255, 255, 0.58);
+}
+
+.signalGrid {
+	@apply mt-4 grid grid-cols-3 gap-3;
+}
+
+.signalTile {
+	@apply rounded-[18px] border px-4 py-3;
+	border-color: rgba(255, 255, 255, 0.07);
+	background: rgba(255, 255, 255, 0.03);
+}
+
+.signalTile span {
+	@apply text-[10px] uppercase tracking-[0.16em];
+	color: rgba(255, 255, 255, 0.3);
+}
+
+.signalTile strong {
+	@apply mt-2 block text-[13px] font-medium;
+	color: rgba(255, 255, 255, 0.84);
+}
+
+.evidenceRow {
+	@apply flex items-center justify-between gap-4 rounded-[16px] border px-4 py-3;
+	border-color: rgba(255, 255, 255, 0.06);
+	background: rgba(255, 255, 255, 0.025);
+}
+
+.evidenceRow + .evidenceRow {
+	@apply mt-3;
+}
+
+.evidenceRow__left {
+	@apply flex items-center gap-3;
+}
+
+.evidenceRow__left p {
+	@apply text-[12px] leading-[1.45];
+	color: rgba(255, 255, 255, 0.66);
+}
+
+.evidenceDotGold,
+.evidenceDotGreen,
+.evidenceDotBlue {
+	@apply h-2.5 w-2.5 rounded-full;
+}
+
+.evidenceDotGold {
+	background: #f2c94c;
+	box-shadow: 0 0 18px rgba(242, 201, 76, 0.28);
+}
+
+.evidenceDotGreen {
+	background: #6ee7b7;
+	box-shadow: 0 0 18px rgba(110, 231, 183, 0.28);
+}
+
+.evidenceDotBlue {
+	background: #8aa6ff;
+	box-shadow: 0 0 18px rgba(138, 166, 255, 0.28);
+}
+
+.evidenceValue {
+	@apply rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-[0.16em];
+	border-color: rgba(255, 255, 255, 0.07);
+	background: rgba(255, 255, 255, 0.04);
+	color: rgba(255, 255, 255, 0.42);
+}
+
+.chartArea {
+	@apply mt-1 flex h-full flex-col justify-between gap-4;
+}
+
+.chartBars {
+	@apply grid flex-1 grid-cols-3 items-end gap-3 rounded-[18px] border bg-[#0f1115] px-4 pb-4 pt-8;
+	border-color: rgba(255, 255, 255, 0.07);
+	min-height: 170px;
+}
+
+.chartBarGold,
+.chartBarGreen,
+.chartBarBlue {
+	@apply rounded-t-[14px];
+}
+
+.chartBarGold {
+	height: 64%;
+	background: linear-gradient(180deg, rgba(242, 201, 76, 0.9), rgba(242, 201, 76, 0.15));
+	box-shadow: 0 0 40px rgba(242, 201, 76, 0.2);
+}
+
+.chartBarGreen {
+	height: 82%;
+	background: linear-gradient(180deg, rgba(110, 231, 183, 0.92), rgba(110, 231, 183, 0.15));
+	box-shadow: 0 0 40px rgba(110, 231, 183, 0.18);
+}
+
+.chartBarBlue {
+	height: 52%;
+	background: linear-gradient(180deg, rgba(138, 166, 255, 0.92), rgba(138, 166, 255, 0.15));
+	box-shadow: 0 0 40px rgba(138, 166, 255, 0.18);
+}
+
+.chartSummary {
+	@apply grid grid-cols-3 gap-2;
+}
+
+.chartSummary div {
+	@apply rounded-[16px] border px-3 py-3;
+	border-color: rgba(255, 255, 255, 0.07);
+	background: rgba(255, 255, 255, 0.025);
+}
+
+.chartSummary span {
+	@apply text-[10px] uppercase tracking-[0.16em];
+	color: rgba(255, 255, 255, 0.3);
+}
+
+.chartSummary strong {
+	@apply mt-2 block text-[13px] font-medium;
+	color: rgba(255, 255, 255, 0.84);
+}
+
+.slideList {
+	@apply flex flex-col gap-3;
+}
+
+.slideRow {
+	@apply flex items-center gap-3 rounded-[16px] border px-4 py-3;
+	border-color: rgba(255, 255, 255, 0.06);
+	background: rgba(255, 255, 255, 0.025);
+}
+
+.slideRow span {
+	@apply min-w-[34px] text-[11px] font-semibold uppercase tracking-[0.14em];
+	color: rgba(255, 255, 255, 0.3);
+}
+
+.slideRow p {
+	@apply text-[13px] font-medium;
+	color: rgba(255, 255, 255, 0.74);
+}
+
+.footerStrip {
+	@apply flex flex-wrap gap-3 rounded-[22px] border px-4 py-3;
+	border-color: rgba(255, 255, 255, 0.08);
+	background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015));
+	transform-style: preserve-3d;
+}
+
+.footerChip {
+	@apply rounded-full border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em];
+	border-color: rgba(255, 255, 255, 0.08);
+	background: rgba(255, 255, 255, 0.045);
+	color: rgba(255, 255, 255, 0.48);
+}

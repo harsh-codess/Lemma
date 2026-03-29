@@ -20,6 +20,42 @@ const domains = [
 	'Neuroscience & Brain-Computer Interfaces',
 ]
 
+type SvgTextBlockProps = {
+	x: number
+	y: number
+	lines: string[]
+	fill: string
+	fontSize: number
+	fontWeight?: number | string
+	lineHeight?: number
+	textAnchor?: 'start' | 'middle' | 'end'
+}
+
+const SvgTextBlock: FC<SvgTextBlockProps> = ({
+	x,
+	y,
+	lines,
+	fill,
+	fontSize,
+	fontWeight,
+	lineHeight = fontSize + 6,
+	textAnchor = 'start',
+}) => (
+	<text
+		x={x}
+		y={y}
+		fill={fill}
+		fontSize={fontSize}
+		fontWeight={fontWeight}
+		textAnchor={textAnchor}>
+		{lines.map((line, index) => (
+			<tspan key={`${x}-${y}-${line}-${index}`} x={x} dy={index === 0 ? 0 : lineHeight}>
+				{line}
+			</tspan>
+		))}
+	</text>
+)
+
 const PipelineSvg: FC = () => (
 	<svg viewBox='0 0 1120 300' width='100%' height='100%' role='img' aria-label='Domain classification pipeline'>
 		<defs>
@@ -30,32 +66,76 @@ const PipelineSvg: FC = () => (
 		</defs>
 		<rect x='0' y='0' width='1120' height='300' fill='transparent' />
 		<rect x='20' y='70' width='220' height='160' rx='14' fill='rgba(255,255,255,0.03)' stroke='url(#strokeA)' />
-		<text x='40' y='118' fill='rgba(255,255,255,0.9)' fontSize='20' fontWeight='600'>Paper Upload</text>
-		<text x='40' y='150' fill='rgba(255,255,255,0.65)' fontSize='14'>
-			<tspan x='40' dy='0'>Abstract · Method ·</tspan>
-			<tspan x='40' dy='18'>Conclusion</tspan>
-		</text>
+		<SvgTextBlock
+			x={40}
+			y={118}
+			lines={['Paper Upload']}
+			fill='rgba(255,255,255,0.9)'
+			fontSize={20}
+			fontWeight='600'
+		/>
+		<SvgTextBlock
+			x={40}
+			y={150}
+			lines={['Abstract · Method ·', 'Conclusion']}
+			fill='rgba(255,255,255,0.65)'
+			fontSize={14}
+			lineHeight={18}
+		/>
 		<path d='M240 150 L320 150' stroke='rgba(255,255,255,0.35)' strokeWidth='2' />
 		<rect x='320' y='70' width='220' height='160' rx='14' fill='rgba(255,255,255,0.03)' stroke='url(#strokeA)' />
-		<text x='340' y='118' fill='rgba(255,255,255,0.9)' fontSize='20' fontWeight='600'>Claude Pass</text>
-		<text x='340' y='150' fill='rgba(255,255,255,0.65)' fontSize='14'>
-			<tspan x='340' dy='0'>Zero-shot domain</tspan>
-			<tspan x='340' dy='18'>classification</tspan>
-		</text>
+		<SvgTextBlock
+			x={340}
+			y={118}
+			lines={['Claude Pass']}
+			fill='rgba(255,255,255,0.9)'
+			fontSize={20}
+			fontWeight='600'
+		/>
+		<SvgTextBlock
+			x={340}
+			y={150}
+			lines={['Zero-shot domain', 'classification']}
+			fill='rgba(255,255,255,0.65)'
+			fontSize={14}
+			lineHeight={18}
+		/>
 		<path d='M540 150 L620 150' stroke='rgba(255,255,255,0.35)' strokeWidth='2' />
 		<rect x='620' y='70' width='220' height='160' rx='14' fill='rgba(255,255,255,0.03)' stroke='url(#strokeA)' />
-		<text x='640' y='118' fill='rgba(255,255,255,0.9)' fontSize='20' fontWeight='600'>Taxonomy Match</text>
-		<text x='640' y='150' fill='rgba(255,255,255,0.65)' fontSize='14'>
-			<tspan x='640' dy='0'>40+ domains</tspan>
-			<tspan x='640' dy='18'>primary + secondary</tspan>
-		</text>
+		<SvgTextBlock
+			x={640}
+			y={118}
+			lines={['Taxonomy Match']}
+			fill='rgba(255,255,255,0.9)'
+			fontSize={20}
+			fontWeight='600'
+		/>
+		<SvgTextBlock
+			x={640}
+			y={150}
+			lines={['40+ domains', 'primary + secondary']}
+			fill='rgba(255,255,255,0.65)'
+			fontSize={14}
+			lineHeight={18}
+		/>
 		<path d='M840 150 L920 150' stroke='rgba(255,255,255,0.35)' strokeWidth='2' />
 		<rect x='920' y='70' width='180' height='160' rx='14' fill='rgba(255,255,255,0.03)' stroke='url(#strokeA)' />
-		<text x='940' y='118' fill='rgba(255,255,255,0.9)' fontSize='20' fontWeight='600'>Pipeline</text>
-		<text x='940' y='150' fill='rgba(255,255,255,0.65)' fontSize='14'>
-			<tspan x='940' dy='0'>Market · TRL</tspan>
-			<tspan x='940' dy='18'>Investor fit</tspan>
-		</text>
+		<SvgTextBlock
+			x={940}
+			y={118}
+			lines={['Pipeline']}
+			fill='rgba(255,255,255,0.9)'
+			fontSize={20}
+			fontWeight='600'
+		/>
+		<SvgTextBlock
+			x={940}
+			y={150}
+			lines={['Market · TRL', 'Investor fit']}
+			fill='rgba(255,255,255,0.65)'
+			fontSize={14}
+			lineHeight={18}
+		/>
 	</svg>
 )
 
@@ -68,30 +148,85 @@ const PipelineSvgMobile: FC = () => (
 			</linearGradient>
 		</defs>
 		<rect x='16' y='16' width='328' height='120' rx='14' fill='rgba(255,255,255,0.03)' stroke='url(#pipelineMobileStroke)' />
-		<text x='34' y='48' fill='rgba(255,255,255,0.9)' fontSize='15' fontWeight='600'>Paper Upload</text>
-		<text x='34' y='72' fill='rgba(255,255,255,0.65)' fontSize='11.5'>Abstract · Method · Conclusion</text>
+		<SvgTextBlock
+			x={34}
+			y={48}
+			lines={['Paper Upload']}
+			fill='rgba(255,255,255,0.9)'
+			fontSize={15}
+			fontWeight='600'
+		/>
+		<SvgTextBlock
+			x={34}
+			y={72}
+			lines={['Abstract · Method ·', 'Conclusion']}
+			fill='rgba(255,255,255,0.65)'
+			fontSize={11.5}
+			lineHeight={15}
+		/>
 
 		<path d='M180 136 L180 164' stroke='rgba(255,255,255,0.35)' strokeWidth='2' />
 		<path d='M174 156 L180 164 L186 156' fill='none' stroke='rgba(255,255,255,0.35)' strokeWidth='2' />
 
 		<rect x='16' y='174' width='328' height='120' rx='14' fill='rgba(255,255,255,0.03)' stroke='url(#pipelineMobileStroke)' />
-		<text x='34' y='206' fill='rgba(255,255,255,0.9)' fontSize='15' fontWeight='600'>Claude Pass</text>
-		<text x='34' y='230' fill='rgba(255,255,255,0.65)' fontSize='11.5'>Zero-shot domain classification</text>
+		<SvgTextBlock
+			x={34}
+			y={206}
+			lines={['Claude Pass']}
+			fill='rgba(255,255,255,0.9)'
+			fontSize={15}
+			fontWeight='600'
+		/>
+		<SvgTextBlock
+			x={34}
+			y={230}
+			lines={['Zero-shot domain', 'classification']}
+			fill='rgba(255,255,255,0.65)'
+			fontSize={11.5}
+			lineHeight={15}
+		/>
 
 		<path d='M180 294 L180 322' stroke='rgba(255,255,255,0.35)' strokeWidth='2' />
 		<path d='M174 314 L180 322 L186 314' fill='none' stroke='rgba(255,255,255,0.35)' strokeWidth='2' />
 
 		<rect x='16' y='332' width='328' height='120' rx='14' fill='rgba(255,255,255,0.03)' stroke='url(#pipelineMobileStroke)' />
-		<text x='34' y='364' fill='rgba(255,255,255,0.9)' fontSize='15' fontWeight='600'>Taxonomy Match</text>
-		<text x='34' y='388' fill='rgba(255,255,255,0.65)' fontSize='11.5'>40+ domains · primary + secondary</text>
+		<SvgTextBlock
+			x={34}
+			y={364}
+			lines={['Taxonomy Match']}
+			fill='rgba(255,255,255,0.9)'
+			fontSize={15}
+			fontWeight='600'
+		/>
+		<SvgTextBlock
+			x={34}
+			y={388}
+			lines={['40+ domains', 'primary + secondary']}
+			fill='rgba(255,255,255,0.65)'
+			fontSize={11.5}
+			lineHeight={15}
+		/>
 
 		<path d='M180 452 L180 480' stroke='rgba(255,255,255,0.35)' strokeWidth='2' />
 		<path d='M174 472 L180 480 L186 472' fill='none' stroke='rgba(255,255,255,0.35)' strokeWidth='2' />
 
 		<rect x='16' y='490' width='328' height='114' rx='14' fill='rgba(255,255,255,0.03)' stroke='url(#pipelineMobileStroke)' />
-		<text x='34' y='520' fill='rgba(255,255,255,0.9)' fontSize='15' fontWeight='600'>Pipeline Outputs</text>
-		<text x='34' y='543' fill='rgba(255,255,255,0.65)' fontSize='11.5'>Market analysis · TRL scoring</text>
-		<text x='34' y='560' fill='rgba(255,255,255,0.65)' fontSize='11.5'>Investor matching · pitch framing</text>
+		<SvgTextBlock
+			x={34}
+			y={520}
+			lines={['Pipeline Outputs']}
+			fill='rgba(255,255,255,0.9)'
+			fontSize={15}
+			fontWeight='600'
+		/>
+		<SvgTextBlock
+			x={34}
+			y={543}
+			lines={['Market analysis · TRL scoring', 'Investor matching · pitch framing']}
+			fill='rgba(255,255,255,0.65)'
+			fontSize={11.5}
+			lineHeight={17}
+		/>
 	</svg>
 )
 
@@ -123,22 +258,66 @@ const ProductViewSvg: FC = () => (
 		<rect x='54' y='148' width='448' height='12' rx='6' fill='rgba(94,106,210,0.75)' />
 		<text x='54' y='182' fill='rgba(255,255,255,0.68)' fontSize='13'>Technology Readiness Level: 7 / 10</text>
 
-		<rect x='54' y='204' width='640' height='64' rx='10' fill='rgba(255,255,255,0.02)' stroke='rgba(255,255,255,0.08)' />
-		<text x='74' y='232' fill='rgba(255,255,255,0.86)' fontSize='15' fontWeight='600'>Suggested fit</text>
-		<text x='74' y='254' fill='rgba(255,255,255,0.63)' fontSize='13'>Life sciences market comps • BIRAC/DBT grant signals • Medtech investor theses</text>
+		<rect x='54' y='204' width='640' height='88' rx='10' fill='rgba(255,255,255,0.02)' stroke='rgba(255,255,255,0.08)' />
+		<SvgTextBlock
+			x={74}
+			y={232}
+			lines={['Suggested fit']}
+			fill='rgba(255,255,255,0.86)'
+			fontSize={15}
+			fontWeight='600'
+		/>
+		<SvgTextBlock
+			x={74}
+			y={254}
+			lines={[
+				'Life sciences market comps',
+				'BIRAC/DBT grant signals',
+				'Medtech investor theses',
+			]}
+			fill='rgba(255,255,255,0.63)'
+			fontSize={13}
+			lineHeight={18}
+		/>
 
-		<rect x='54' y='286' width='174' height='34' rx='8' fill='rgba(255,255,255,0.09)' stroke='rgba(255,255,255,0.18)' />
-		<text x='77' y='308' fill='white' fontSize='14' fontWeight='600'>Override domain</text>
+		<rect x='54' y='304' width='174' height='34' rx='8' fill='rgba(255,255,255,0.09)' stroke='rgba(255,255,255,0.18)' />
+		<text x='77' y='326' fill='white' fontSize='14' fontWeight='600'>Override domain</text>
 
 		<rect x='740' y='70' width='356' height='126' rx='14' fill='rgba(255,255,255,0.03)' stroke='url(#panelStroke)' />
-		<text x='764' y='108' fill='rgba(255,255,255,0.9)' fontSize='19' fontWeight='600'>One-click correction</text>
-		<text x='764' y='136' fill='rgba(255,255,255,0.65)' fontSize='14'>Wrong tag? Pick the right domain</text>
-		<text x='764' y='156' fill='rgba(255,255,255,0.65)' fontSize='14'>before the pipeline proceeds.</text>
+		<SvgTextBlock
+			x={764}
+			y={108}
+			lines={['One-click correction']}
+			fill='rgba(255,255,255,0.9)'
+			fontSize={19}
+			fontWeight='600'
+		/>
+		<SvgTextBlock
+			x={764}
+			y={136}
+			lines={['Wrong tag? Pick the right domain', 'before the pipeline proceeds.']}
+			fill='rgba(255,255,255,0.65)'
+			fontSize={14}
+			lineHeight={20}
+		/>
 
 		<rect x='740' y='220' width='356' height='146' rx='14' fill='rgba(255,255,255,0.03)' stroke='url(#panelStroke)' />
-		<text x='764' y='258' fill='rgba(255,255,255,0.9)' fontSize='19' fontWeight='600'>Feedback loop</text>
-		<text x='764' y='286' fill='rgba(255,255,255,0.65)' fontSize='14'>Your correction is logged as signal</text>
-		<text x='764' y='306' fill='rgba(255,255,255,0.65)' fontSize='14'>to improve future classifications.</text>
+		<SvgTextBlock
+			x={764}
+			y={258}
+			lines={['Feedback loop']}
+			fill='rgba(255,255,255,0.9)'
+			fontSize={19}
+			fontWeight='600'
+		/>
+		<SvgTextBlock
+			x={764}
+			y={286}
+			lines={['Your correction is logged as signal', 'to improve future classifications.']}
+			fill='rgba(255,255,255,0.65)'
+			fontSize={14}
+			lineHeight={20}
+		/>
 
 		<path d='M700 304 C760 304, 740 304, 740 304' stroke='rgba(255,255,255,0.35)' strokeWidth='2' />
 		<path d='M732 298 L740 304 L732 310' fill='none' stroke='rgba(255,255,255,0.35)' strokeWidth='2' />
@@ -160,8 +339,15 @@ const ProductViewSvgMobile: FC = () => (
 			</linearGradient>
 		</defs>
 
-		<rect x='16' y='16' width='328' height='270' rx='14' fill='rgba(255,255,255,0.03)' stroke='url(#mobilePanelStroke)' />
-		<text x='34' y='44' fill='rgba(255,255,255,0.9)' fontSize='16' fontWeight='600'>TRL Scorecard</text>
+		<rect x='16' y='16' width='328' height='292' rx='14' fill='rgba(255,255,255,0.03)' stroke='url(#mobilePanelStroke)' />
+		<SvgTextBlock
+			x={34}
+			y={44}
+			lines={['TRL Scorecard']}
+			fill='rgba(255,255,255,0.9)'
+			fontSize={16}
+			fontWeight='600'
+		/>
 		<rect x='34' y='58' width='186' height='28' rx='14' fill='url(#mobileChip)' stroke='rgba(255,255,255,0.22)' />
 		<text x='48' y='76' fill='white' fontSize='11.5' fontWeight='600'>Primary: Pharmaceuticals</text>
 		<rect x='34' y='96' width='136' height='26' rx='13' fill='rgba(255,255,255,0.06)' stroke='rgba(255,255,255,0.16)' />
@@ -169,28 +355,71 @@ const ProductViewSvgMobile: FC = () => (
 		<rect x='34' y='136' width='292' height='10' rx='5' fill='rgba(255,255,255,0.08)' />
 		<rect x='34' y='136' width='198' height='10' rx='5' fill='rgba(94,106,210,0.75)' />
 		<text x='34' y='164' fill='rgba(255,255,255,0.64)' fontSize='11.5'>Technology Readiness Level: 7 / 10</text>
-		<rect x='34' y='176' width='292' height='58' rx='9' fill='rgba(255,255,255,0.02)' stroke='rgba(255,255,255,0.08)' />
-		<text x='46' y='198' fill='rgba(255,255,255,0.86)' fontSize='11.5' fontWeight='600'>Suggested fit</text>
-		<text x='46' y='216' fill='rgba(255,255,255,0.62)' fontSize='10.5'>Life sciences comps • grant signals</text>
-		<text x='46' y='231' fill='rgba(255,255,255,0.62)' fontSize='10.5'>investor theses</text>
-		<rect x='34' y='246' width='132' height='28' rx='7' fill='rgba(255,255,255,0.09)' stroke='rgba(255,255,255,0.18)' />
-		<text x='48' y='264' fill='white' fontSize='11.5' fontWeight='600'>Override domain</text>
+		<rect x='34' y='176' width='292' height='82' rx='9' fill='rgba(255,255,255,0.02)' stroke='rgba(255,255,255,0.08)' />
+		<SvgTextBlock
+			x={46}
+			y={198}
+			lines={['Suggested fit']}
+			fill='rgba(255,255,255,0.86)'
+			fontSize={11.5}
+			fontWeight='600'
+		/>
+		<SvgTextBlock
+			x={46}
+			y={216}
+			lines={[
+				'Life sciences comps',
+				'grant signals',
+				'investor theses',
+			]}
+			fill='rgba(255,255,255,0.62)'
+			fontSize={10.5}
+			lineHeight={14}
+		/>
+		<rect x='34' y='270' width='132' height='28' rx='7' fill='rgba(255,255,255,0.09)' stroke='rgba(255,255,255,0.18)' />
+		<text x='48' y='288' fill='white' fontSize='11.5' fontWeight='600'>Override domain</text>
 
-		<path d='M180 286 L180 314' stroke='rgba(255,255,255,0.35)' strokeWidth='2' />
-		<path d='M174 306 L180 314 L186 306' fill='none' stroke='rgba(255,255,255,0.35)' strokeWidth='2' />
+		<path d='M180 308 L180 336' stroke='rgba(255,255,255,0.35)' strokeWidth='2' />
+		<path d='M174 328 L180 336 L186 328' fill='none' stroke='rgba(255,255,255,0.35)' strokeWidth='2' />
 
-		<rect x='16' y='324' width='328' height='116' rx='14' fill='rgba(255,255,255,0.03)' stroke='url(#mobilePanelStroke)' />
-		<text x='34' y='352' fill='rgba(255,255,255,0.9)' fontSize='15' fontWeight='600'>One-click correction</text>
-		<text x='34' y='374' fill='rgba(255,255,255,0.65)' fontSize='11.5'>Wrong tag? Pick the right domain</text>
-		<text x='34' y='391' fill='rgba(255,255,255,0.65)' fontSize='11.5'>before the pipeline proceeds.</text>
+		<rect x='16' y='346' width='328' height='116' rx='14' fill='rgba(255,255,255,0.03)' stroke='url(#mobilePanelStroke)' />
+		<SvgTextBlock
+			x={34}
+			y={374}
+			lines={['One-click correction']}
+			fill='rgba(255,255,255,0.9)'
+			fontSize={15}
+			fontWeight='600'
+		/>
+		<SvgTextBlock
+			x={34}
+			y={396}
+			lines={['Wrong tag? Pick the right domain', 'before the pipeline proceeds.']}
+			fill='rgba(255,255,255,0.65)'
+			fontSize={11.5}
+			lineHeight={16}
+		/>
 
-		<path d='M180 440 L180 468' stroke='rgba(255,255,255,0.35)' strokeWidth='2' />
-		<path d='M174 460 L180 468 L186 460' fill='none' stroke='rgba(255,255,255,0.35)' strokeWidth='2' />
+		<path d='M180 462 L180 490' stroke='rgba(255,255,255,0.35)' strokeWidth='2' />
+		<path d='M174 482 L180 490 L186 482' fill='none' stroke='rgba(255,255,255,0.35)' strokeWidth='2' />
 
-		<rect x='16' y='478' width='328' height='126' rx='14' fill='rgba(255,255,255,0.03)' stroke='url(#mobilePanelStroke)' />
-		<text x='34' y='506' fill='rgba(255,255,255,0.9)' fontSize='15' fontWeight='600'>Feedback loop</text>
-		<text x='34' y='528' fill='rgba(255,255,255,0.65)' fontSize='11.5'>Your correction is logged as signal</text>
-		<text x='34' y='545' fill='rgba(255,255,255,0.65)' fontSize='11.5'>to improve future classifications.</text>
+		<rect x='16' y='500' width='328' height='104' rx='14' fill='rgba(255,255,255,0.03)' stroke='url(#mobilePanelStroke)' />
+		<SvgTextBlock
+			x={34}
+			y={528}
+			lines={['Feedback loop']}
+			fill='rgba(255,255,255,0.9)'
+			fontSize={15}
+			fontWeight='600'
+		/>
+		<SvgTextBlock
+			x={34}
+			y={550}
+			lines={['Your correction is logged as signal', 'to improve future classifications.']}
+			fill='rgba(255,255,255,0.65)'
+			fontSize={11.5}
+			lineHeight={16}
+		/>
 	</svg>
 )
 

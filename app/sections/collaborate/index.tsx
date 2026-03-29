@@ -3,6 +3,7 @@ import styles from './styles.module.css'
 import SectionHeading from '@/components/sectionHeading'
 import Carousel from './components/carousel'
 import LayoutWrapper from '@/components/layout-wrapper'
+import { GradientText } from '@/components/ui/gradient-text'
 
 const Collaborate: FC = () => {
 	return (
@@ -10,11 +11,19 @@ const Collaborate: FC = () => {
 			<LayoutWrapper>
 				<div className={styles.heading__container}>
 					<div className={styles.heading__inner__container}>
-						<SectionHeading
-							heading='From analysis to a deck you can walk into a room with'
-							badgeText='Feasibility and pitch generation'
-							badgeStyle='bg-[#b59aff] border-none'
-						/>
+							<SectionHeading
+								heading={
+									<>
+										From analysis to a{' '}
+										<GradientText className='bg-transparent text-white dark:bg-transparent'>
+											deck
+										</GradientText>{' '}
+										you can walk into a room with
+									</>
+								}
+								badgeText='Feasibility and pitch generation'
+								badgeStyle='bg-[#b59aff] border-none'
+							/>
 					</div>
 
 					<div className={styles.heading__text__container}>

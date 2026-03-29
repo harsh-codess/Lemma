@@ -18,6 +18,7 @@ import { longTermFeatureLookup } from './feature-lookup-data'
 import FirstCard from './components/first-card'
 import SecondCard from './components/second-card'
 import WideCard from './components/wide-card'
+import { GradientText } from '@/components/ui/gradient-text'
 
 const LongTermPlanning: FC = () => {
 	return (
@@ -26,11 +27,18 @@ const LongTermPlanning: FC = () => {
 				<div className={styles.heading__container}>
 					<div className={styles.heading__inner__container}>
 						<Link href='/'>
-							<SectionHeading
-								heading='Know exactly where your research stands'
-								badgeText='Paper analysis and TRL scoring'
-								badgeStyle='bg-[#68CC58] border-none'
-							/>
+								<SectionHeading
+									heading={
+										<>
+											Know exactly where your research{' '}
+											<GradientText className='bg-transparent text-white dark:bg-transparent'>
+												stands
+											</GradientText>
+										</>
+									}
+									badgeText='Paper analysis and TRL scoring'
+									badgeStyle='bg-[#68CC58] border-none'
+								/>
 						</Link>
 					</div>
 					<div className={styles.description__container}>
