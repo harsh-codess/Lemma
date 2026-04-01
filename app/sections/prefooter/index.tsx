@@ -23,7 +23,7 @@ const PreFooter: FC = () => {
 
 					<div className={styles.links__outter__container}>
 						<div className={styles.links__inner__container}>
-							<Link className={styles.get__started__link} href='/sign-in'>
+							<Link className={styles.get__started__link} href='/app'>
 								{' '}
 								Analyze my paper{' '}
 							</Link>

@@ -290,40 +290,40 @@ const Carousel: FC = () => {
 						setActiveCardIndex(null)
 					}
 				}}>
-				<DialogContent className='max-w-4xl overflow-hidden border-[var(--color-border-secondary)] bg-[var(--color-bg-secondary)] p-0 text-[var(--color-text-primary)] shadow-[var(--shadow-high)] sm:rounded-[28px]'>
+				<DialogContent className='max-h-[calc(100dvh-1rem)] max-w-4xl overflow-y-auto overflow-x-hidden border-[var(--color-border-secondary)] bg-[var(--color-bg-secondary)] p-0 text-[var(--color-text-primary)] shadow-[var(--shadow-high)] sm:max-h-[calc(100dvh-2rem)] sm:rounded-[28px]'>
 					{activeCard && (
 						<div className='grid gap-0 md:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]'>
-							<div className='border-b border-[var(--color-border-primary)] bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))] p-6 md:border-b-0 md:border-r md:p-8'>
-								<div className='rounded-[24px] border border-[var(--color-border-secondary)] bg-[var(--color-bg-primary)] p-6'>
+							<div className='border-b border-[var(--color-border-primary)] bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))] p-4 sm:p-6 md:border-b-0 md:border-r md:p-8'>
+								<div className='rounded-[20px] border border-[var(--color-border-secondary)] bg-[var(--color-bg-primary)] p-4 sm:rounded-[24px] sm:p-6'>
 									{activeCard.content}
 								</div>
 							</div>
 
-							<div className='flex flex-col justify-between gap-8 p-6 md:p-8'>
+							<div className='flex flex-col justify-between gap-6 p-4 sm:p-6 md:gap-8 md:p-8'>
 								<DialogHeader className='space-y-4 text-left'>
 									<span className='text-[12px] font-semibold uppercase tracking-[0.22em] text-[var(--color-text-quaternary)]'>
 										{activeCard.eyebrow}
 									</span>
-									<DialogTitle className='text-[28px] font-medium leading-[1.05] tracking-[-0.025em] text-[var(--color-text-primary)]'>
+									<DialogTitle className='pr-8 text-[22px] font-medium leading-[1.08] tracking-[-0.025em] text-[var(--color-text-primary)] sm:text-[26px] md:text-[28px]'>
 										{activeCard.title}
 									</DialogTitle>
-									<DialogDescription className='text-[16px] font-medium leading-[1.6] text-[var(--color-text-tertiary)]'>
+									<DialogDescription className='text-[14px] font-medium leading-[1.6] text-[var(--color-text-tertiary)] sm:text-[15px] md:text-[16px]'>
 										{activeCard.description}
 									</DialogDescription>
 								</DialogHeader>
 
 								<div className='space-y-4'>
-									<p className='text-[20px] font-medium leading-[1.25] tracking-[-0.02em] text-[var(--color-text-primary)]'>
+									<p className='text-[18px] font-medium leading-[1.28] tracking-[-0.02em] text-[var(--color-text-primary)] sm:text-[19px] md:text-[20px]'>
 										{activeCard.detailHeading}
 									</p>
-									<p className='text-[15px] leading-[1.7] text-[var(--color-text-secondary)]'>
+									<p className='text-[14px] leading-[1.7] text-[var(--color-text-secondary)] sm:text-[15px]'>
 										{activeCard.detailBody}
 									</p>
 								</div>
 
 								<div className='flex flex-col gap-3 sm:flex-row'>
 									<Link
-										href='/sign-in'
+										href='/app'
 										className='inline-flex h-11 items-center justify-center rounded-[12px] bg-[#e6e6e6] px-4 text-[15px] font-medium text-[var(--color-bg-primary)] shadow-[var(--shadow-stack-low)] transition-colors hover:bg-white'>
 										Analyze my paper
 									</Link>

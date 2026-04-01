@@ -199,6 +199,9 @@ const Header = () => {
 
 							<SignedIn>
 								<div className='flex items-center gap-3'>
+									<Link href='/app' className={styles.secondary__action}>
+										Dashboard
+									</Link>
 									<div className='hidden sm:flex flex-col items-end'>
 										<span className={styles.user__label}>{userLabel}</span>
 										<span className={styles.user__status}>Authenticated</span>

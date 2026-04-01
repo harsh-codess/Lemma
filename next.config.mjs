@@ -14,18 +14,17 @@ const nextConfig = {
 				resourceQuery: /url/, // *.svg?url
 			},
 			// Convert all other *.svg imports to React components
-			{
-				test: /\.svg$/i,
-				issuer: fileLoaderRule.issuer,
-				resourceQuery: { not: [...fileLoaderRule.resourceQuery.not, /url/] }, // exclude if *.svg?url
-				use: ['@svgr/webpack'],
+			test: /\.svg$/i,
+			issuer: fileLoaderRule.issuer,
+			resourceQuery: { not: [...fileLoaderRule.resourceQuery.not, /url/] }, // exclude if *.svg?url
+			use: ['@svgr/webpack'],
 			},
 		)
 
-		// Modify the file loader rule to ignore *.svg, since we have it handled now.
-		fileLoaderRule.exclude = /\.svg$/i
+// Modify the file loader rule to ignore *.svg, since we have it handled now.
+fileLoaderRule.exclude = /\.svg$/i
 
-		return config
+return config
 	},
 }
 

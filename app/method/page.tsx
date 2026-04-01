@@ -96,7 +96,7 @@ export default function MethodPage() {
 						<span className={styles.link__card__cta}>Open technical explainer</span>
 					</Link>
 
-					<Link href='/sign-in' className={styles.link__card}>
+					<Link href='/app' className={styles.link__card}>
 						<div className={styles.card__label}>Experience it</div>
 						<h2 className={styles.link__card__title}>Run the workflow on your own paper</h2>
 						<p className={styles.link__card__body}>

@@ -143,7 +143,7 @@ export default function InstitutionsPage() {
 			</section>
 
 			<section className={styles.section}>
-				<Link href='/sign-in' className={styles.link__card}>
+				<Link href='/app' className={styles.link__card}>
 					<div className={styles.card__label}>Next step</div>
 					<h2 className={styles.link__card__title}>
 						Analyze a paper and see how Lemma frames it for venture review.

@@ -3,11 +3,13 @@
 import { useState } from "react";
 
 import AnimatedTextCycle from "@/components/ui/animated-text-cycle";
+import MorphPanel from "@/components/ui/ai-input";
 import {
   SecondaryNavbar,
   SimpleNavbar,
 } from "@/components/ui/core-header-navbar";
 import { GradientText } from "@/components/ui/gradient-text";
+import Frame760 from "@/components/ui/sidebar-component";
 
 export default function DemoOne() {
   const [type, setType] = useState("/");
@@ -65,4 +67,12 @@ export function GradientTextDemo() {
       Design <GradientText>without</GradientText> Limits
     </h1>
   );
+}
+
+export function SidebarComponentDemo() {
+  return <Frame760 />;
+}
+
+export function AIInputDemo() {
+  return <MorphPanel />;
 }

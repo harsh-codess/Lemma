@@ -1,0 +1,281 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum ProjectStatus {
+  DRAFT
+  IN_REVIEW
+  READY_FOR_EXPORT
+}
+
+enum StageKey {
+  PAPER
+  TRL_IRL
+  MARKET
+  FEASIBILITY
+  DECK
+  REVIEW
+}
+
+enum StageStatus {
+  COMPLETE
+  CURRENT
+  UPCOMING
+}
+
+enum AnalysisStatus {
+  IDLE
+  PROCESSING
+  COMPLETE
+  FAILED
+}
+
+enum SourceType {
+  PAPER
+  PATENT
+  NEWS
+  FUNDING
+  MARKET_REPORT
+  INTERNAL_NOTE
+}
+
+enum ConfidenceLevel {
+  HIGH
+  MEDIUM
+  WATCH
+}
+
+enum SignalType {
+  FUNDING
+  PATENT
+  DEMAND
+  POLICY
+}
+
+enum ReviewNoteStatus {
+  OPEN
+  RESOLVED
+}
+
+enum UserRole {
+  RESEARCHER
+  TTO_ANALYST
+  TTO_LEAD
+  COMMITTEE_MEMBER
+  ADMIN
+}
+
+// ─── Core Models ─────────────────────────────────────────────────────────────
+
+model Institution {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  users     User[]
+  projects  Project[]
+}
+
+model User {
+  id            String      @id // Clerk user ID
+  email         String      @unique
+  name          String?
+  role          UserRole    @default(RESEARCHER)
+  institutionId String?
+  institution   Institution? @relation(fields: [institutionId], references: [id])
+  projects      Project[]
+  reviewNotes   ReviewNote[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model Project {
+  id             String          @id @default(cuid())
+  title          String
+  domain         String
+  shortNote      String?
+  status         ProjectStatus   @default(DRAFT)
+  currentStage   StageKey        @default(PAPER)
+  readinessScore Int             @default(0)
+
+  // File storage
+  paperUrl       String?         // Cloudflare R2 public URL
+  paperFileName  String?
+
+  // AI processing state
+  analysisStatus AnalysisStatus  @default(IDLE)
+  analysisError  String?
+
+  // Relations
+  ownerId        String
+  owner          User            @relation(fields: [ownerId], references: [id])
+  institutionId  String
+  institution    Institution     @relation(fields: [institutionId], references: [id])
+
+  // Stage data (one-to-one, optional until AI fills them)
+  paper          PaperData?
+  trlIrl         TrlIrlData?
+  market         MarketData?
+  feasibility    FeasibilityData?
+  deck           DeckData?
+  review         ReviewData?
+
+  // Collections
+  stages         ProjectStage[]
+  evidence       Evidence[]
+  reviewNotes    ReviewNote[]
+  competitors    Competitor[]
+  marketSignals  MarketSignal[]
+  deckSlides     DeckSlide[]
+  copilotPrompts CopilotPrompt[]
+
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+// ─── Stage Tracking ──────────────────────────────────────────────────────────
+
+model ProjectStage {
+  id          String      @id @default(cuid())
+  projectId   String
+  project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  key         StageKey
+  label       String
+  description String
+  status      StageStatus @default(UPCOMING)
+
+  @@unique([projectId, key])
+}
+
+// ─── Stage Data Models ───────────────────────────────────────────────────────
+
+model PaperData {
+  id                   String  @id @default(cuid())
+  projectId            String  @unique
+  project              Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  abstractSummary      String  @db.Text
+  noveltySummary       String  @db.Text
+  domainClassification String
+  keyClaims            String[] // Postgres array
+}
+
+model TrlIrlData {
+  id         String  @id @default(cuid())
+  projectId  String  @unique
+  project    Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  trlScore   String
+  irlScore   String
+  rationale  String[]
+  confidence String
+  riskFlags  String[]
+}
+
+model MarketData {
+  id        String  @id @default(cuid())
+  projectId String  @unique
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tam       String
+  sam       String
+  som       String
+  summary   String  @db.Text
+}
+
+model FeasibilityData {
+  id               String  @id @default(cuid())
+  projectId        String  @unique
+  project          Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  teamRequirements String[]
+  timeline         String
+  capitalEstimate  String
+  grantFit         String
+  keyRisks         String[]
+}
+
+model DeckData {
+  id                 String  @id @default(cuid())
+  projectId          String  @unique
+  project            Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fundingAsk         String
+  keyNarrativePoints String[]
+}
+
+model ReviewData {
+  id                String  @id @default(cuid())
+  projectId         String  @unique
+  project           Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  status            String
+  exportReadiness   String
+  approvalChecklist String[]
+}
+
+// ─── Collections ─────────────────────────────────────────────────────────────
+
+model Evidence {
+  id          String          @id @default(cuid())
+  projectId   String
+  project     Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  stageKey    StageKey
+  claim       String          @db.Text
+  sourceType  SourceType
+  sourceTitle String
+  confidence  ConfidenceLevel
+  summary     String          @db.Text
+  createdAt   DateTime        @default(now())
+}
+
+model Competitor {
+  id           String  @id @default(cuid())
+  projectId    String
+  project      Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name         String
+  positioning  String  @db.Text
+  stage        String
+  signal       String  @db.Text
+}
+
+model MarketSignal {
+  id        String          @id @default(cuid())
+  projectId String
+  project   Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title     String
+  type      SignalType
+  impact    ConfidenceLevel
+  summary   String          @db.Text
+}
+
+model DeckSlide {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  order     Int
+  title     String
+  keyPoint  String  @db.Text
+}
+
+model ReviewNote {
+  id        String           @id @default(cuid())
+  projectId String
+  project   Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User             @relation(fields: [authorId], references: [id])
+  stageKey  StageKey
+  status    ReviewNoteStatus @default(OPEN)
+  comment   String           @db.Text
+  createdAt DateTime         @default(now())
+}
+
+model CopilotPrompt {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  stageKey  StageKey
+  label     String
+  answer    String   @db.Text
+  order     Int      @default(0)
+}

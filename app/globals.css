@@ -11,7 +11,7 @@
 @font-face {
 	font-family: Linear;
 	font-weight: 400 800;
-	font-display: block;
+	font-display: swap;
 	src: url('/static/fonts/inter-var-4-latin.woff2') format('woff2');
 }
 /* 
@@ -25,13 +25,64 @@
 } */
 
 body {
-	font-family: var(--regular-font);
+	font-family: var(--font-regular);
 	background: var(--color-bg-primary);
 	overflow-x: clip;
 }
 
+.auth-grid-motion {
+	animation: auth-grid-drift 16s ease-in-out infinite;
+	will-change: transform, opacity;
+}
+
+.auth-grid-secondary-motion {
+	animation: auth-grid-drift-secondary 18s ease-in-out infinite;
+	will-change: transform, opacity;
+}
+
+.auth-grid-glow {
+	animation: auth-grid-glow 12s ease-in-out infinite;
+	will-change: transform, opacity;
+}
+
 body::-webkit-scrollbar {
 	display: none;
+}
+
+@keyframes auth-grid-drift {
+	0%,
+	100% {
+		transform: translate3d(0, 0, 0) scale(1);
+		opacity: 0.2;
+	}
+	50% {
+		transform: translate3d(-10px, -12px, 0) scale(1.03);
+		opacity: 0.34;
+	}
+}
+
+@keyframes auth-grid-drift-secondary {
+	0%,
+	100% {
+		transform: translate3d(0, 0, 0) scale(1.01);
+		opacity: 0.08;
+	}
+	50% {
+		transform: translate3d(12px, -10px, 0) scale(1.05);
+		opacity: 0.16;
+	}
+}
+
+@keyframes auth-grid-glow {
+	0%,
+	100% {
+		transform: scale(1);
+		opacity: 0.14;
+	}
+	50% {
+		transform: scale(1.08);
+		opacity: 0.24;
+	}
 }
 
 :root {
