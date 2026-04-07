@@ -1,39 +1,82 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowRight, FlaskConical, Plus } from 'lucide-react'
+import {
+	ChevronRight,
+	FlaskConical,
+	Loader2,
+	Plus,
+	Sparkles,
+	Clock,
+	CheckCircle2,
+	AlertTriangle,
+} from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import {
-	type WorkspaceProject,
-	getAllWorkspaceProjects,
-	getStoredDraftWorkspaceProjects,
-	workspaceStageOrder,
-} from '@/lib/workspace-data'
+
+type PortfolioProject = {
+	id: string
+	title: string
+	domain: string
+	shortNote: string | null
+	status: string
+	currentStage: string
+	readinessScore: number
+	analysisStatus: string
+	updatedAt: string
+	owner: { name: string | null; email: string }
+	institution: { name: string }
+	stages: Array<{ key: string; label: string; status: string }>
+}
 
 const formatUpdatedAt = (value: string) => {
 	try {
 		return new Intl.DateTimeFormat('en', {
 			month: 'short',
 			day: 'numeric',
-			year: 'numeric',
 		}).format(new Date(value))
 	} catch {
 		return value
 	}
 }
 
-const ProjectPortfolio = ({
-	initialProjects,
-}: {
-	initialProjects: WorkspaceProject[]
-}) => {
-	const [projects, setProjects] = useState(initialProjects)
+const statusConfig: Record<
+	string,
+	{ label: string; icon: typeof CheckCircle2; className: string }
+> = {
+	COMPLETE: {
+		label: 'Complete',
+		icon: CheckCircle2,
+		className: 'text-emerald-400 bg-emerald-400/10',
+	},
+	PROCESSING: {
+		label: 'Analyzing',
+		icon: Loader2,
+		className: 'text-[#e7c35a] bg-[#e7c35a]/10',
+	},
+	FAILED: {
+		label: 'Failed',
+		icon: AlertTriangle,
+		className: 'text-red-400 bg-red-400/10',
+	},
+	IDLE: {
+		label: 'Queued',
+		icon: Clock,
+		className: 'text-white/50 bg-white/[0.06]',
+	},
+}
+
+const ProjectPortfolio = () => {
+	const [projects, setProjects] = useState<PortfolioProject[]>([])
+	const [isLoading, setIsLoading] = useState(true)
 
 	useEffect(() => {
-		const drafts = getStoredDraftWorkspaceProjects()
-		setProjects(getAllWorkspaceProjects(drafts))
+		fetch('/api/projects')
+			.then((res) => (res.ok ? res.json() : []))
+			.then((data) => setProjects(data))
+			.catch(() => setProjects([]))
+			.finally(() => setIsLoading(false))
 	}, [])
 
 	const sortedProjects = useMemo(
@@ -47,16 +90,18 @@ const ProjectPortfolio = ({
 
 	return (
 		<section className='space-y-8'>
+			{/* Header */}
 			<div className='flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between'>
 				<div>
 					<p className='text-[0.7rem] uppercase tracking-[0.24em] text-[#e7c35a]'>
 						Projects
 					</p>
 					<h1 className='mt-3 text-3xl font-semibold tracking-[-0.05em] text-white sm:text-4xl'>
-						Open a workspace or create a new one.
+						Your research portfolio
 					</h1>
-					<p className='mt-3 max-w-2xl text-sm leading-7 text-white/56'>
-						Today’s flow is simple: create a project, enter the workspace, and move stage by stage.
+					<p className='mt-3 max-w-lg text-sm leading-7 text-white/50'>
+						Track every paper from upload through commercialization scoring.
+						Open a workspace to see the full analysis.
 					</p>
 				</div>
 
@@ -70,92 +115,116 @@ const ProjectPortfolio = ({
 				</Button>
 			</div>
 
-			{sortedProjects.length ? (
-				<div className='grid gap-4 xl:grid-cols-2'>
+			{/* Content */}
+			{isLoading ? (
+				<div className='flex min-h-[30vh] items-center justify-center rounded-[32px] border border-white/[0.04] bg-white/[0.02]'>
+					<div className='flex items-center gap-3 text-white/55'>
+						<Loader2 className='h-5 w-5 animate-spin' />
+						<span className='text-sm'>Loading projects</span>
+					</div>
+				</div>
+			) : sortedProjects.length ? (
+				<div className='space-y-3'>
 					{sortedProjects.map((project) => {
-						const currentStage = workspaceStageOrder.find(
-							(stage) => stage.key === project.currentStage,
+						const currentStage = project.stages.find(
+							(s) => s.key === project.currentStage,
 						)
+						const completedStages = project.stages.filter(
+							(s) => s.status === 'COMPLETE',
+						).length
+						const status =
+							statusConfig[project.analysisStatus] ?? statusConfig.IDLE
+						const StatusIcon = status.icon
+						const ownerDisplay =
+							project.owner.name ??
+							project.owner.email.replace(/@.*/, '')
 
 						return (
-							<article
+							<Link
 								key={project.id}
-								className='group relative overflow-hidden rounded-[30px] bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.015))] p-6 transition-transform duration-300 hover:-translate-y-1 hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02))]'>
-								<div className='flex flex-wrap items-start justify-between gap-3'>
-									<div className='min-w-0'>
-										<div className='flex items-center gap-2 text-[0.68rem] uppercase tracking-[0.22em] text-white/38'>
+								href={`/app/projects/${project.id}`}
+								className='group relative flex flex-col overflow-hidden rounded-[22px] border border-white/[0.04] bg-[linear-gradient(180deg,rgba(255,255,255,0.035),rgba(255,255,255,0.012))] transition-all duration-300 hover:border-white/[0.08] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02))] sm:flex-row sm:items-center sm:gap-6 sm:pr-5'>
+								{/* Left: Main info */}
+								<div className='min-w-0 flex-1 p-5 sm:py-5 sm:pl-6'>
+									<div className='flex items-center gap-2.5'>
+										<div className='flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#e7c35a]/10'>
 											<FlaskConical className='h-3.5 w-3.5 text-[#e7c35a]' />
-											<span>{project.domain}</span>
 										</div>
-										<h2 className='mt-3 max-w-xl text-2xl font-semibold tracking-[-0.03em] text-white'>
-											{project.title}
-										</h2>
-										<p className='mt-2 text-sm leading-6 text-white/50'>
-											{project.institution} · {project.lab}
+										<span className='text-[0.65rem] uppercase tracking-[0.22em] text-white/35'>
+											{project.domain}
+										</span>
+										<span className='text-white/15'>&middot;</span>
+										<span className='text-[0.65rem] uppercase tracking-[0.22em] text-white/30'>
+											{project.institution.name}
+										</span>
+									</div>
+									<h2 className='mt-2.5 text-[1.05rem] font-semibold leading-snug tracking-[-0.02em] text-white group-hover:text-white'>
+										{project.title}
+									</h2>
+									{project.shortNote && (
+										<p className='mt-1.5 line-clamp-1 max-w-2xl text-sm text-white/40'>
+											{project.shortNote}
 										</p>
-									</div>
-									<div className='rounded-full bg-white/[0.07] px-3 py-1 text-sm font-medium text-white/80'>
-										{project.status}
-									</div>
+									)}
 								</div>
 
-								<p className='mt-5 max-w-2xl text-sm leading-7 text-white/58'>
-									{project.shortNote}
-								</p>
+								{/* Right: Meta chips */}
+								<div className='flex flex-wrap items-center gap-2.5 px-5 pb-5 sm:shrink-0 sm:pb-0'>
+									<span
+										className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.65rem] font-medium uppercase tracking-[0.16em] ${status.className}`}>
+										<StatusIcon
+											className={`h-3 w-3 ${project.analysisStatus === 'PROCESSING' ? 'animate-spin' : ''}`}
+										/>
+										{status.label}
+									</span>
 
-								<div className='mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4'>
-									<div className='rounded-2xl bg-black/30 p-4'>
-										<p className='text-[0.68rem] uppercase tracking-[0.22em] text-white/35'>
-											Current stage
-										</p>
-										<p className='mt-2 text-sm font-semibold text-white'>
-											{currentStage?.label ?? 'Project setup'}
-										</p>
-									</div>
-									<div className='rounded-2xl bg-black/30 p-4'>
-										<p className='text-[0.68rem] uppercase tracking-[0.22em] text-white/35'>
-											Readiness
-										</p>
-										<p className='mt-2 text-sm font-semibold text-white'>
-											{project.readinessScore}/100
-										</p>
-									</div>
-									<div className='rounded-2xl bg-black/30 p-4'>
-										<p className='text-[0.68rem] uppercase tracking-[0.22em] text-white/35'>
-											Owner
-										</p>
-										<p className='mt-2 text-sm font-semibold text-white'>
-											{project.owner}
-										</p>
-									</div>
-									<div className='rounded-2xl bg-black/30 p-4'>
-										<p className='text-[0.68rem] uppercase tracking-[0.22em] text-white/35'>
-											Updated
-										</p>
-										<p className='mt-2 text-sm font-semibold text-white'>
-											{formatUpdatedAt(project.updatedAt)}
-										</p>
-									</div>
-								</div>
+									<span className='inline-flex items-center rounded-full bg-white/[0.05] px-2.5 py-1 text-[0.65rem] uppercase tracking-[0.16em] text-white/50'>
+										{currentStage?.label ?? 'Paper'}
+										{completedStages > 0 && (
+											<span className='ml-1.5 text-white/25'>
+												{completedStages}/{project.stages.length}
+											</span>
+										)}
+									</span>
 
-								<div className='mt-6 flex flex-wrap items-center gap-3'>
-									<Link
-										href={`/app/projects/${project.id}`}
-										className='inline-flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-white/90'>
-										Open workspace
-										<ArrowRight className='h-4 w-4' />
-									</Link>
+									{project.readinessScore > 0 && (
+										<span className='inline-flex items-center gap-1.5 rounded-full bg-white/[0.05] px-2.5 py-1 text-[0.65rem] font-medium uppercase tracking-[0.16em] text-white/50'>
+											<Sparkles className='h-3 w-3 text-[#e7c35a]' />
+											{project.readinessScore}
+										</span>
+									)}
+
+									<span className='hidden text-[0.65rem] text-white/25 sm:inline'>
+										{ownerDisplay} &middot;{' '}
+										{formatUpdatedAt(project.updatedAt)}
+									</span>
+
+									<ChevronRight className='hidden h-4 w-4 text-white/20 transition-transform group-hover:translate-x-0.5 group-hover:text-white/40 sm:block' />
 								</div>
-							</article>
+							</Link>
 						)
 					})}
 				</div>
 			) : (
-				<div className='rounded-[32px] bg-white/[0.03] px-6 py-16 text-center'>
-					<p className='text-lg font-medium text-white'>No projects yet</p>
-					<p className='mt-2 text-sm text-white/52'>
-						Create the first workspace to start shaping a research paper into a commercialization decision.
+				<div className='rounded-[28px] border border-white/[0.04] bg-white/[0.02] px-6 py-20 text-center'>
+					<div className='mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#e7c35a]/10'>
+						<Sparkles className='h-6 w-6 text-[#e7c35a]' />
+					</div>
+					<h2 className='mt-5 text-lg font-semibold text-white'>
+						No projects yet
+					</h2>
+					<p className='mx-auto mt-2 max-w-sm text-sm leading-6 text-white/45'>
+						Upload a research paper and let Lemma score its commercial
+						readiness through TRL/IRL, market, and feasibility analysis.
 					</p>
+					<Button
+						asChild
+						className='mt-6 h-11 rounded-full bg-white px-5 text-sm font-semibold text-black hover:bg-white/90'>
+						<Link href='/app/projects/new'>
+							<Plus className='mr-2 h-4 w-4' />
+							Create first project
+						</Link>
+					</Button>
 				</div>
 			)}
 		</section>

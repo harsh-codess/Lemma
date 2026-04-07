@@ -17,12 +17,25 @@
 // ─── Agent 1: Paper Analysis ─────────────────────────────────────────────────
 
 export interface PaperAgentOutput {
+	// Core extraction
 	abstractSummary: string
 	noveltySummary: string
 	domainClassification: string
 	keyClaims: string[]
 	domain: string // e.g. "Biotech / Materials"
 	initialReadinessEstimate: number // 0-100, rough first pass
+
+	// Startup-grade additions
+	claimConfidence: ClaimConfidenceItem[] // per-claim evidence tagging
+	methodologyStrength: 'STRONG' | 'ADEQUATE' | 'WEAK' | 'UNKNOWN'
+	commercializationBarriers: string[] // what the paper itself reveals as blockers
+	institutionContext: string // institution, country, relevant bodies detected
+}
+
+export interface ClaimConfidenceItem {
+	claim: string
+	confidence: 'EVIDENCE_BACKED' | 'INFERRED' | 'SPECULATIVE'
+	reasoning: string
 }
 
 // ─── Agent 2: TRL / IRL Scoring ──────────────────────────────────────────────
@@ -32,12 +45,20 @@ export interface TrlIrlAgentInput {
 }
 
 export interface TrlIrlAgentOutput {
+	// Core scores
 	trlScore: string // e.g. "TRL 5"
 	irlScore: string // e.g. "IRL 6.2 / 10"
 	rationale: string[]
 	confidence: string // e.g. "82% confidence based on..."
-	riskFlags: string[]
+	riskFlags: string[] // prefixed: [TECHNICAL], [REGULATORY], [IP], [MARKET], [TEAM]
 	evidence: EvidenceItem[]
+
+	// Startup-grade additions
+	commercializationPathway: 'SPIN_OFF' | 'LICENSING' | 'PARTNERSHIP' | 'NOT_RECOMMENDED'
+	pathwayRationale: string
+	recommendedGrants: string[] // specific programs: DST-SERB, BIRAC, DBT, MEITY, NSF, etc.
+	timeToMarket: string // e.g. "3-5 years via licensing, 7-10 years via spin-off"
+	domainRubricApplied: string // which domain-specific TRL rubric was used
 }
 
 // ─── Agent 3: Market Intelligence ────────────────────────────────────────────

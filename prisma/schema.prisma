@@ -156,24 +156,35 @@ model ProjectStage {
 // ─── Stage Data Models ───────────────────────────────────────────────────────
 
 model PaperData {
-  id                   String  @id @default(cuid())
-  projectId            String  @unique
-  project              Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  abstractSummary      String  @db.Text
-  noveltySummary       String  @db.Text
-  domainClassification String
-  keyClaims            String[] // Postgres array
+  id                       String   @id @default(cuid())
+  projectId                String   @unique
+  project                  Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  abstractSummary          String   @db.Text
+  noveltySummary           String   @db.Text
+  domainClassification     String
+  keyClaims                String[] // Postgres array
+  // Startup-grade enrichment fields
+  methodologyStrength      String?  // STRONG | ADEQUATE | WEAK | UNKNOWN
+  commercializationBarriers String[] @default([])
+  institutionContext       String?  @db.Text
+  claimConfidence          Json?    // Array of { claim, confidence, reasoning }
 }
 
 model TrlIrlData {
-  id         String  @id @default(cuid())
-  projectId  String  @unique
-  project    Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  trlScore   String
-  irlScore   String
-  rationale  String[]
-  confidence String
-  riskFlags  String[]
+  id                      String   @id @default(cuid())
+  projectId               String   @unique
+  project                 Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  trlScore                String
+  irlScore                String
+  rationale               String[]
+  confidence              String
+  riskFlags               String[]
+  // Startup-grade enrichment fields
+  commercializationPathway String?  // SPIN_OFF | LICENSING | PARTNERSHIP | NOT_RECOMMENDED
+  pathwayRationale        String?  @db.Text
+  recommendedGrants       String[] @default([])
+  timeToMarket            String?
+  domainRubricApplied     String?
 }
 
 model MarketData {

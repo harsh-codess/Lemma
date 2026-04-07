@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { auth, currentUser } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { createRouteLogger } from '@/lib/logger'
@@ -25,8 +25,23 @@ export async function GET(request: NextRequest) {
 	// Get user with their role and institution
 	const user = await prisma.user.findUnique({
 		where: { id: userId },
-		select: { role: true, institutionId: true },
+		select: { role: true, institutionId: true, email: true },
 	})
+
+	// If user has stale placeholder email, backfill from Clerk
+	if (user?.email.includes('@clerk.placeholder')) {
+		const clerkUser = await currentUser()
+		if (clerkUser) {
+			const realEmail = clerkUser.emailAddresses?.[0]?.emailAddress ?? user.email
+			const realName = clerkUser.firstName
+				? `${clerkUser.firstName}${clerkUser.lastName ? ` ${clerkUser.lastName}` : ''}`
+				: null
+			await prisma.user.update({
+				where: { id: userId },
+				data: { email: realEmail, ...(realName ? { name: realName } : {}) },
+			})
+		}
+	}
 
 	// Build the where clause based on role
 	const whereClause = buildWhereClause(userId, user, status, domain)
@@ -121,13 +136,21 @@ export async function POST(request: NextRequest) {
 
 	const { title, institution, lab, domain, shortNote, paperUrl, paperFileName } = parsed.data
 
-	// Ensure user exists in DB (synced from Clerk)
+	// Fetch real user data from Clerk
+	const clerkUser = await currentUser()
+	const realEmail = clerkUser?.emailAddresses?.[0]?.emailAddress ?? `${userId}@unknown`
+	const realName = clerkUser?.firstName
+		? `${clerkUser.firstName}${clerkUser.lastName ? ` ${clerkUser.lastName}` : ''}`
+		: null
+
+	// Ensure user exists in DB with real Clerk data
 	const user = await prisma.user.upsert({
 		where: { id: userId },
-		update: {},
+		update: { email: realEmail, ...(realName ? { name: realName } : {}) },
 		create: {
 			id: userId,
-			email: `${userId}@clerk.placeholder`, // Unique per user, updated by Clerk webhook
+			email: realEmail,
+			name: realName,
 			role: 'RESEARCHER',
 		},
 	})

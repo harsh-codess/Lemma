@@ -14,7 +14,7 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from '@/components/ui/dialog'
-import { LemmaWorkspaceSidebar } from '@/components/ui/sidebar-component'
+import { LemmaSidebar } from '@/components/ui/sidebar'
 
 const WorkspaceAppShell = ({ children }: { children: React.ReactNode }) => {
 	const pathname = usePathname()
@@ -29,14 +29,19 @@ const WorkspaceAppShell = ({ children }: { children: React.ReactNode }) => {
 
 	return (
 		<div className='min-h-screen bg-[#040405] text-white'>
+			{/* Collapsible sidebar — hidden on mobile, hover-to-expand on desktop */}
+			<div className='hidden lg:block'>
+				<LemmaSidebar />
+			</div>
+
 			<div className='flex min-h-screen w-full'>
-				<aside className='hidden shrink-0 bg-[radial-gradient(circle_at_top,_rgba(231,195,90,0.08),_transparent_36%),linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] p-3 lg:flex lg:flex-col xl:p-4'>
-					<LemmaWorkspaceSidebar pathname={pathname} className='h-[calc(100vh-2rem)]' />
-				</aside>
+				{/* Left spacer matching collapsed sidebar width on desktop */}
+				<div className='hidden lg:block lg:w-[3.05rem] lg:shrink-0' />
 
 				<div className='flex min-h-screen min-w-0 flex-1 flex-col'>
-					<header className='sticky top-0 z-40 bg-[#040405]/92 backdrop-blur-2xl'>
+					<header className='sticky top-0 z-30 bg-[#040405]/92 backdrop-blur-2xl'>
 						<div className='flex items-center gap-3 px-4 py-4 sm:px-6 lg:px-8'>
+							{/* Mobile menu trigger */}
 							<Dialog>
 								<DialogTrigger asChild>
 									<Button
@@ -56,7 +61,7 @@ const WorkspaceAppShell = ({ children }: { children: React.ReactNode }) => {
 										</DialogDescription>
 									</DialogHeader>
 									<div className='h-full p-3'>
-										<LemmaWorkspaceSidebar pathname={pathname} className='h-full' />
+										<LemmaSidebar />
 									</div>
 								</DialogContent>
 							</Dialog>

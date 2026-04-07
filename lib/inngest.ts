@@ -1,6 +1,7 @@
 import { Inngest } from 'inngest'
 import { prisma } from '@/lib/prisma'
 import { runPaperAgent } from '@/lib/agents/paper-agent'
+import { runTrlIrlAgent } from '@/lib/agents/trl-irl-agent'
 import { createAgentLogger } from '@/lib/logger'
 import Pusher from 'pusher'
 
@@ -56,7 +57,7 @@ export const analyzePaper = inngest.createFunction(
 		onFailure: async ({ event, error }: { event: any; error: Error }) => {
 			// If all retries are exhausted, mark the project as FAILED
 			// so it doesn't stay stuck in PROCESSING forever
-			const projectId = event.data?.event?.data?.projectId
+			const projectId = event.data?.projectId
 			if (projectId) {
 				await prisma.project.update({
 					where: { id: projectId },
@@ -133,9 +134,7 @@ export const analyzePaper = inngest.createFunction(
 						domain: paperAnalysis.domain,
 						readinessScore: paperAnalysis.initialReadinessEstimate,
 						currentStage: 'PAPER',
-						// Mark COMPLETE since only Agent 1 exists for now
-						// When Agent 2 is added, this stays PROCESSING until Agent 5
-						analysisStatus: 'COMPLETE',
+						analysisStatus: 'PROCESSING',
 					},
 				}),
 				prisma.paperData.upsert({
@@ -146,12 +145,20 @@ export const analyzePaper = inngest.createFunction(
 						noveltySummary: paperAnalysis.noveltySummary,
 						domainClassification: paperAnalysis.domainClassification,
 						keyClaims: paperAnalysis.keyClaims,
+						methodologyStrength: paperAnalysis.methodologyStrength,
+						commercializationBarriers: paperAnalysis.commercializationBarriers ?? [],
+						institutionContext: paperAnalysis.institutionContext,
+						claimConfidence: paperAnalysis.claimConfidence ?? [],
 					},
 					update: {
 						abstractSummary: paperAnalysis.abstractSummary,
 						noveltySummary: paperAnalysis.noveltySummary,
 						domainClassification: paperAnalysis.domainClassification,
 						keyClaims: paperAnalysis.keyClaims,
+						methodologyStrength: paperAnalysis.methodologyStrength,
+						commercializationBarriers: paperAnalysis.commercializationBarriers ?? [],
+						institutionContext: paperAnalysis.institutionContext,
+						claimConfidence: paperAnalysis.claimConfidence ?? [],
 					},
 				}),
 				prisma.projectStage.updateMany({
@@ -167,8 +174,95 @@ export const analyzePaper = inngest.createFunction(
 		})
 
 		// ── Agent 2: TRL/IRL Scoring ─────────────────────────────────────
-		// TODO: receives paperAnalysis as input
-		// const trlIrlAnalysis = await step.run('agent-2-trl-irl', async () => { ... })
+		const trlIrlAnalysis = await step.run('agent-2-trl-irl', async () => {
+			await notify(`project-${projectId}`, 'agent-started', {
+				projectId,
+				agent: 2,
+				name: 'TRL/IRL Scoring',
+				stage: 'trl-irl',
+			})
+
+			const result = await runTrlIrlAgent(paperAnalysis, projectId)
+
+			await notify(`project-${projectId}`, 'agent-complete', {
+				projectId,
+				agent: 2,
+				name: 'TRL/IRL Scoring',
+				stage: 'trl-irl',
+				output: {
+					trlScore: result.trlScore,
+					irlScore: result.irlScore,
+					riskCount: result.riskFlags.length,
+				},
+			})
+
+			return result
+		})
+
+		// ── Save Agent 2 output to DB ────────────────────────────────────
+		await step.run('save-agent-2', async () => {
+			await prisma.$transaction([
+				prisma.project.update({
+					where: { id: projectId },
+					data: {
+						currentStage: 'TRL_IRL',
+						// Keep PROCESSING until all 5 agents complete
+						analysisStatus: 'PROCESSING',
+					},
+				}),
+				prisma.trlIrlData.upsert({
+					where: { projectId },
+					create: {
+						projectId,
+						trlScore: trlIrlAnalysis.trlScore,
+						irlScore: trlIrlAnalysis.irlScore,
+						rationale: trlIrlAnalysis.rationale,
+						confidence: trlIrlAnalysis.confidence,
+						riskFlags: trlIrlAnalysis.riskFlags,
+						commercializationPathway: trlIrlAnalysis.commercializationPathway,
+						pathwayRationale: trlIrlAnalysis.pathwayRationale,
+						recommendedGrants: trlIrlAnalysis.recommendedGrants ?? [],
+						timeToMarket: trlIrlAnalysis.timeToMarket,
+						domainRubricApplied: trlIrlAnalysis.domainRubricApplied,
+					},
+					update: {
+						trlScore: trlIrlAnalysis.trlScore,
+						irlScore: trlIrlAnalysis.irlScore,
+						rationale: trlIrlAnalysis.rationale,
+						confidence: trlIrlAnalysis.confidence,
+						riskFlags: trlIrlAnalysis.riskFlags,
+						commercializationPathway: trlIrlAnalysis.commercializationPathway,
+						pathwayRationale: trlIrlAnalysis.pathwayRationale,
+						recommendedGrants: trlIrlAnalysis.recommendedGrants ?? [],
+						timeToMarket: trlIrlAnalysis.timeToMarket,
+						domainRubricApplied: trlIrlAnalysis.domainRubricApplied,
+					},
+				}),
+				prisma.projectStage.updateMany({
+					where: { projectId, key: 'TRL_IRL' },
+					data: { status: 'COMPLETE' },
+				}),
+				prisma.projectStage.updateMany({
+					where: { projectId, key: 'MARKET' },
+					data: { status: 'CURRENT' },
+				}),
+				// Save evidence items from Agent 2
+				...trlIrlAnalysis.evidence.map((e: { claim: string; sourceTitle: string; confidence: string; summary: string }) =>
+					prisma.evidence.create({
+						data: {
+							projectId,
+							stageKey: 'TRL_IRL',
+							claim: e.claim,
+							sourceType: 'PAPER',
+							sourceTitle: e.sourceTitle,
+							confidence: e.confidence === 'High' ? 'HIGH' : e.confidence === 'Medium' ? 'MEDIUM' : 'WATCH',
+							summary: e.summary,
+						},
+					})
+				),
+			])
+			pipelineLog.info('Agent 2 output saved to database')
+		})
 
 		// ── Agent 3: Market Intelligence ─────────────────────────────────
 		// TODO: receives paperAnalysis + trlIrlAnalysis
@@ -184,16 +278,22 @@ export const analyzePaper = inngest.createFunction(
 
 		// ── Pipeline complete ────────────────────────────────────────────
 		await step.run('pipeline-complete', async () => {
+			await prisma.project.update({
+				where: { id: projectId },
+				data: { analysisStatus: 'COMPLETE' },
+			});
 			pipelineLog.info('Pipeline complete', {
 				readinessScore: paperAnalysis.initialReadinessEstimate,
+				trlScore: trlIrlAnalysis.trlScore,
+				irlScore: trlIrlAnalysis.irlScore,
 			})
 			await notify(`project-${projectId}`, 'pipeline-complete', {
 				projectId,
 				readinessScore: paperAnalysis.initialReadinessEstimate,
-				completedAgents: ['paper'],
+				completedAgents: ['paper', 'trl-irl'],
 			})
 		})
 
-		return { success: true, projectId, paperAnalysis }
+		return { success: true, projectId, paperAnalysis, trlIrlAnalysis }
 	}
 )

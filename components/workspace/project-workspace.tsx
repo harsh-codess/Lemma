@@ -13,8 +13,11 @@ import {
 	Loader2,
 	SearchCode,
 	ShieldCheck,
+	Sparkles,
+	TrendingUp,
+	Clock,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -25,36 +28,120 @@ import {
 	DialogTitle,
 } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
-import {
-	type EvidenceItem,
-	type ProjectStageKey,
-	type ReviewNote,
-	type WorkspaceProject,
-	getWorkspaceProjectFromStorage,
-} from '@/lib/workspace-data'
 
+// ─── Types matching the real API response ────────────────────────────────────
+
+type StageKey = 'PAPER' | 'TRL_IRL' | 'MARKET' | 'FEASIBILITY' | 'DECK' | 'REVIEW'
+
+type ApiProject = {
+	id: string
+	title: string
+	domain: string
+	shortNote: string | null
+	status: string
+	currentStage: StageKey
+	readinessScore: number
+	paperUrl: string | null
+	paperFileName: string | null
+	analysisStatus: 'IDLE' | 'PROCESSING' | 'COMPLETE' | 'FAILED'
+	analysisError: string | null
+	createdAt: string
+	updatedAt: string
+	owner: { name: string | null; email: string }
+	institution: { id: string; name: string }
+	stages: Array<{ id: string; key: StageKey; label: string; description: string; status: string }>
+	paper: {
+		abstractSummary: string
+		noveltySummary: string
+		domainClassification: string
+		keyClaims: string[]
+		methodologyStrength: string | null
+		commercializationBarriers: string[]
+		institutionContext: string | null
+		claimConfidence: Array<{ claim: string; confidence: string; reasoning: string }> | null
+	} | null
+	trlIrl: {
+		trlScore: string
+		irlScore: string
+		rationale: string[]
+		confidence: string
+		riskFlags: string[]
+		commercializationPathway: string | null
+		pathwayRationale: string | null
+		recommendedGrants: string[]
+		timeToMarket: string | null
+		domainRubricApplied: string | null
+	} | null
+	market: { tam: string; sam: string; som: string; summary: string } | null
+	feasibility: {
+		teamRequirements: string[]
+		timeline: string
+		capitalEstimate: string
+		grantFit: string
+		keyRisks: string[]
+	} | null
+	deck: { fundingAsk: string; keyNarrativePoints: string[] } | null
+	review: { status: string; exportReadiness: string; approvalChecklist: string[] } | null
+	evidence: Array<{
+		id: string
+		stageKey: StageKey
+		claim: string
+		sourceType: string
+		sourceTitle: string
+		confidence: string
+		summary: string
+	}>
+	competitors: Array<{
+		id: string
+		name: string
+		positioning: string
+		stage: string
+		signal: string
+	}>
+	marketSignals: Array<{
+		id: string
+		title: string
+		type: string
+		impact: string
+		summary: string
+	}>
+	deckSlides: Array<{ id: string; order: number; title: string; keyPoint: string }>
+	reviewNotes: Array<{
+		id: string
+		stageKey: StageKey | null
+		comment: string
+		status: string
+		createdAt: string
+		author: { name: string | null; email: string; role: string }
+	}>
+}
+
+type EvidenceItem = ApiProject['evidence'][number]
+type ReviewNoteItem = ApiProject['reviewNotes'][number]
 type WorkspaceTab = 'summary' | 'evidence' | 'notes'
 type DetailState =
 	| { type: 'evidence'; item: EvidenceItem }
-	| { type: 'review'; item: ReviewNote }
+	| { type: 'review'; item: ReviewNoteItem }
 	| null
 
-const stageIcons: Record<ProjectStageKey, React.ComponentType<{ className?: string }>> = {
-	paper: FileText,
-	'trl-irl': SearchCode,
-	market: FolderSearch2,
-	feasibility: ClipboardCheck,
-	deck: FileBarChart2,
-	review: ShieldCheck,
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+const stageIcons: Record<StageKey, React.ComponentType<{ className?: string }>> = {
+	PAPER: FileText,
+	TRL_IRL: SearchCode,
+	MARKET: FolderSearch2,
+	FEASIBILITY: ClipboardCheck,
+	DECK: FileBarChart2,
+	REVIEW: ShieldCheck,
 }
 
-const stageAccentClasses: Record<ProjectStageKey, string> = {
-	paper: 'text-sky-200 bg-sky-400/10',
-	'trl-irl': 'text-violet-200 bg-violet-400/10',
-	market: 'text-[#f6df9d] bg-[#e7c35a]/10',
-	feasibility: 'text-emerald-200 bg-emerald-400/10',
-	deck: 'text-fuchsia-200 bg-fuchsia-400/10',
-	review: 'text-white/75 bg-white/[0.06]',
+const stageAccentClasses: Record<StageKey, string> = {
+	PAPER: 'text-sky-200 bg-sky-400/10',
+	TRL_IRL: 'text-violet-200 bg-violet-400/10',
+	MARKET: 'text-[#f6df9d] bg-[#e7c35a]/10',
+	FEASIBILITY: 'text-emerald-200 bg-emerald-400/10',
+	DECK: 'text-fuchsia-200 bg-fuchsia-400/10',
+	REVIEW: 'text-white/75 bg-white/[0.06]',
 }
 
 const formatDate = (value: string) => {
@@ -69,6 +156,15 @@ const formatDate = (value: string) => {
 	}
 }
 
+const methodologyBadge: Record<string, { label: string; className: string }> = {
+	STRONG: { label: 'Strong methodology', className: 'text-emerald-300 bg-emerald-400/10' },
+	ADEQUATE: { label: 'Adequate methodology', className: 'text-sky-300 bg-sky-400/10' },
+	WEAK: { label: 'Weak methodology', className: 'text-amber-300 bg-amber-400/10' },
+	UNKNOWN: { label: 'Methodology unclear', className: 'text-white/50 bg-white/[0.06]' },
+}
+
+// ─── Sub-components ──────────────────────────────────────────────────────────
+
 const SurfaceCard = ({
 	title,
 	description,
@@ -79,38 +175,86 @@ const SurfaceCard = ({
 	description?: string
 	children: React.ReactNode
 	className?: string
-}) => {
-	return (
-		<section
-			className={cn(
-				'rounded-[28px] bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] p-5 sm:p-6',
-				className,
-			)}>
-			<div className='flex flex-wrap items-start justify-between gap-3'>
-				<div className='min-w-0'>
-					<h3 className='text-lg font-semibold tracking-[-0.02em] text-white'>
-						{title}
-					</h3>
-					{description ? (
-						<p className='mt-2 text-sm leading-6 text-white/50'>
-							{description}
-						</p>
-					) : null}
+}) => (
+	<section
+		className={cn(
+			'rounded-[28px] bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] p-5 sm:p-6',
+			className,
+		)}>
+		<div className='flex flex-wrap items-start justify-between gap-3'>
+			<div className='min-w-0'>
+				<h3 className='text-lg font-semibold tracking-[-0.02em] text-white'>{title}</h3>
+				{description && (
+					<p className='mt-2 text-sm leading-6 text-white/50'>{description}</p>
+				)}
+			</div>
+		</div>
+		<div className='mt-5'>{children}</div>
+	</section>
+)
+
+const AnalysisProgress = ({ project }: { project: ApiProject }) => {
+	const step = project.paper ? (project.trlIrl ? 2 : 1) : 0
+	const totalAgents = 2
+	const isActive = project.analysisStatus === 'PROCESSING'
+
+	if (!isActive && project.analysisStatus !== 'FAILED') return null
+
+	if (project.analysisStatus === 'FAILED') {
+		return (
+			<div className='flex items-center gap-4 rounded-[28px] border border-red-500/20 bg-red-500/5 p-5'>
+				<AlertTriangle className='h-5 w-5 shrink-0 text-red-400' />
+				<div>
+					<p className='text-sm font-medium text-red-400'>Analysis failed</p>
+					<p className='mt-1 text-xs text-red-400/60'>
+						{project.analysisError ?? 'An unexpected error occurred during analysis.'}
+					</p>
 				</div>
 			</div>
-			<div className='mt-5'>{children}</div>
-		</section>
+		)
+	}
+
+	const agentNames = ['Paper Analysis', 'TRL / IRL Scoring']
+	const currentAgent = Math.min(step, totalAgents - 1)
+
+	return (
+		<div className='flex items-center gap-4 rounded-[28px] bg-[#e7c35a]/5 p-5'>
+			<div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#e7c35a]/10'>
+				<Loader2 className='h-5 w-5 animate-spin text-[#e7c35a]' />
+			</div>
+			<div className='flex-1'>
+				<p className='text-sm font-medium text-[#e7c35a]'>
+					Agent {currentAgent + 1}: {agentNames[currentAgent]}...
+				</p>
+				<div className='mt-2 flex gap-1'>
+					{agentNames.map((_, i) => (
+						<div
+							key={i}
+							className='h-1 flex-1 rounded-full transition-colors duration-500'
+							style={{
+								backgroundColor:
+									i < step
+										? 'rgba(231, 195, 90, 0.6)'
+										: i === step
+											? 'rgba(231, 195, 90, 0.3)'
+											: 'rgba(255, 255, 255, 0.06)',
+							}}
+						/>
+					))}
+				</div>
+			</div>
+		</div>
 	)
 }
 
 const renderEvidenceTable = (
-	stageEvidence: EvidenceItem[],
+	evidence: EvidenceItem[],
 	onOpenDetail: (item: EvidenceItem) => void,
 ) => {
-	if (!stageEvidence.length) {
+	if (!evidence.length) {
 		return (
 			<div className='rounded-[26px] bg-white/[0.03] px-5 py-10 text-center text-sm text-white/48'>
-				No source rows are attached to this stage yet.
+				No evidence rows are attached to this stage yet.
 			</div>
 		)
 	}
@@ -128,7 +272,7 @@ const renderEvidenceTable = (
 						</tr>
 					</thead>
 					<tbody className='bg-black/20'>
-						{stageEvidence.map((item) => (
+						{evidence.map((item) => (
 							<tr key={item.id}>
 								<td className='px-4 py-4 text-white/82'>{item.claim}</td>
 								<td className='px-4 py-4 text-white/55'>
@@ -156,49 +300,84 @@ const renderEvidenceTable = (
 	)
 }
 
-const ProjectWorkspace = ({
-	projectId,
-	initialProject,
-}: {
-	projectId: string
-	initialProject: WorkspaceProject | null
-}) => {
-	const [project, setProject] = useState<WorkspaceProject | null>(initialProject)
-	const [isResolvingStorage, setIsResolvingStorage] = useState(!initialProject)
-	const [activeStage, setActiveStage] = useState<ProjectStageKey>(
-		initialProject?.currentStage ?? 'paper',
-	)
+const ComingSoon = ({ label }: { label: string }) => (
+	<div className='flex flex-col items-center justify-center rounded-[28px] bg-white/[0.03] px-6 py-16 text-center'>
+		<div className='flex h-14 w-14 items-center justify-center rounded-2xl bg-white/[0.06]'>
+			<Clock className='h-6 w-6 text-white/40' />
+		</div>
+		<h3 className='mt-5 text-lg font-semibold text-white'>{label}</h3>
+		<p className='mt-2 max-w-md text-sm leading-6 text-white/45'>
+			This agent is being built. Results for this stage will appear here once the pipeline is extended.
+		</p>
+	</div>
+)
+
+// ─── Main component ──────────────────────────────────────────────────────────
+
+const ProjectWorkspace = ({ projectId }: { projectId: string }) => {
+	const [project, setProject] = useState<ApiProject | null>(null)
+	const [isLoading, setIsLoading] = useState(true)
+	const [error, setError] = useState<string | null>(null)
+	const [activeStage, setActiveStage] = useState<StageKey>('PAPER')
 	const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>('summary')
 	const [detailState, setDetailState] = useState<DetailState>(null)
 
-	useEffect(() => {
-		const storedProject = getWorkspaceProjectFromStorage(projectId)
+	const fetchProject = useCallback(async () => {
+		try {
+			const res = await fetch(`/api/projects/${projectId}`)
+			if (!res.ok) {
+				if (res.status === 404) {
+					setError('not-found')
+				} else {
+					setError('Failed to load project')
+				}
+				return
+			}
+			const data: ApiProject = await res.json()
+			setProject(data)
+			setError(null)
 
-		if (storedProject) {
-			setProject(storedProject)
-			setActiveStage(storedProject.currentStage)
+			// Set the active stage to the current one on first load
+			if (!project) {
+				setActiveStage(data.currentStage)
+			}
+		} catch {
+			setError('Failed to load project')
+		} finally {
+			setIsLoading(false)
 		}
+	}, [projectId, project])
 
-		setIsResolvingStorage(false)
-	}, [projectId])
+	// Initial fetch
+	useEffect(() => {
+		fetchProject()
+	}, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+	// Poll every 5s while analysis is processing
+	useEffect(() => {
+		if (project?.analysisStatus !== 'PROCESSING') return
+		const interval = setInterval(fetchProject, 5000)
+		return () => clearInterval(interval)
+	}, [project?.analysisStatus, fetchProject])
 
 	useEffect(() => {
 		setWorkspaceTab('summary')
 	}, [activeStage])
 
-	const activeStageMeta = project?.stages.find((stage) => stage.key === activeStage)
+	const activeStageMeta = project?.stages.find((s) => s.key === activeStage)
+
 	const stageEvidence = useMemo(
-		() =>
-			project?.evidence.filter((item) => item.stageKey === activeStage) ?? [],
-		[activeStage, project],
-	)
-	const stageNotes = useMemo(
-		() =>
-			project?.review.notes.filter((note) => note.stageKey === activeStage) ?? [],
+		() => project?.evidence.filter((e) => e.stageKey === activeStage) ?? [],
 		[activeStage, project],
 	)
 
-	if (isResolvingStorage) {
+	const stageNotes = useMemo(
+		() => project?.reviewNotes.filter((n) => n.stageKey === activeStage) ?? [],
+		[activeStage, project],
+	)
+
+	// ── Loading state ─────────────────────────────────────────────────
+	if (isLoading) {
 		return (
 			<div className='flex min-h-[60vh] items-center justify-center rounded-[34px] bg-white/[0.03]'>
 				<div className='flex items-center gap-3 text-white/65'>
@@ -209,7 +388,8 @@ const ProjectWorkspace = ({
 		)
 	}
 
-	if (!project || !activeStageMeta) {
+	// ── Error / not found ─────────────────────────────────────────────
+	if (error || !project || !activeStageMeta) {
 		return (
 			<div className='mx-auto max-w-3xl rounded-[34px] bg-white/[0.03] px-6 py-16 text-center'>
 				<div className='mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white/[0.06] text-white/70'>
@@ -219,7 +399,7 @@ const ProjectWorkspace = ({
 					Project not found
 				</h1>
 				<p className='mt-3 text-sm leading-7 text-white/52'>
-					This workspace could not be resolved from the seeded fixtures or local draft storage.
+					This project may have been deleted or you may not have access.
 				</p>
 				<Button
 					asChild
@@ -235,347 +415,327 @@ const ProjectWorkspace = ({
 
 	const StageIcon = stageIcons[activeStage]
 
-	const renderSummary = () => {
-		switch (activeStage) {
-			case 'paper':
-				return (
-					<div className='space-y-5'>
-						<SurfaceCard
-							title='Research abstract'
-							description='This is the structured paper readout that the commercialization workflow starts from.'>
-							<p className='max-w-4xl text-sm leading-7 text-white/72'>
-								{project.paper.abstractSummary}
-							</p>
-						</SurfaceCard>
+	// ── Stage summaries ───────────────────────────────────────────────
 
-						<div className='grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]'>
-							<SurfaceCard
-								title='Novelty and commercialization wedge'
-								description='Lemma keeps the technical edge tied to why the project may matter commercially.'>
-								<p className='text-sm leading-7 text-white/72'>
-									{project.paper.noveltySummary}
-								</p>
-							</SurfaceCard>
-							<SurfaceCard title='Domain classification'>
-								<p className='text-sm leading-7 text-white/72'>
-									{project.paper.domainClassification}
-								</p>
-							</SurfaceCard>
-						</div>
+	const renderPaperSummary = () => {
+		if (!project.paper) {
+			return project.analysisStatus === 'PROCESSING' ? (
+				<div className='flex items-center gap-3 rounded-[28px] bg-white/[0.03] px-6 py-12 text-center'>
+					<Loader2 className='mx-auto h-5 w-5 animate-spin text-white/40' />
+				</div>
+			) : (
+				<ComingSoon label='Paper analysis pending' />
+			)
+		}
 
-						<SurfaceCard title='Key claims'>
-							<ul className='space-y-3'>
-								{project.paper.keyClaims.map((claim) => (
-									<li
-										key={claim}
-										className='flex items-start gap-3 rounded-2xl bg-black/25 px-4 py-4 text-sm leading-7 text-white/70'>
-										<CheckCircle2 className='mt-1 h-4 w-4 shrink-0 text-[#68cc58]' />
-										<span>{claim}</span>
-									</li>
-								))}
-							</ul>
-						</SurfaceCard>
-					</div>
-				)
-			case 'trl-irl':
-				return (
-					<div className='space-y-5'>
-						<div className='grid gap-4 md:grid-cols-3'>
-							<div className='rounded-[28px] bg-black/25 p-5'>
-								<p className='text-[0.68rem] uppercase tracking-[0.22em] text-white/35'>
-									TRL score
-								</p>
-								<p className='mt-3 text-3xl font-semibold text-white'>
-									{project.trlIrl.trlScore}
-								</p>
-							</div>
-							<div className='rounded-[28px] bg-black/25 p-5'>
-								<p className='text-[0.68rem] uppercase tracking-[0.22em] text-white/35'>
-									IRL score
-								</p>
-								<p className='mt-3 text-3xl font-semibold text-white'>
-									{project.trlIrl.irlScore}
-								</p>
-							</div>
-							<div className='rounded-[28px] bg-black/25 p-5'>
-								<p className='text-[0.68rem] uppercase tracking-[0.22em] text-white/35'>
-									Confidence
-								</p>
-								<p className='mt-3 text-sm leading-7 text-white/72'>
-									{project.trlIrl.confidence}
-								</p>
-							</div>
-						</div>
+		const { paper } = project
+		const badge = paper.methodologyStrength
+			? methodologyBadge[paper.methodologyStrength]
+			: null
 
-						<SurfaceCard title='Scoring rationale'>
-							<ul className='space-y-3'>
-								{project.trlIrl.rationale.map((reason) => (
-									<li
-										key={reason}
-										className='rounded-2xl bg-black/25 px-4 py-4 text-sm leading-7 text-white/70'>
-										{reason}
-									</li>
-								))}
-							</ul>
-						</SurfaceCard>
+		return (
+			<div className='space-y-5'>
+				<SurfaceCard
+					title='Research abstract'
+					description='Structured paper readout that the commercialization workflow starts from.'>
+					<p className='max-w-4xl text-sm leading-7 text-white/72'>
+						{paper.abstractSummary}
+					</p>
+				</SurfaceCard>
 
-						<SurfaceCard
-							title='Risk flags'
-							description='These are the watch-outs that keep the score from being interpreted too optimistically.'>
-							<ul className='space-y-3'>
-								{project.trlIrl.riskFlags.map((flag) => (
-									<li
-										key={flag}
-										className='flex items-start gap-3 rounded-2xl bg-[#e7c35a]/10 px-4 py-4 text-sm leading-7 text-[#f3db90]'>
-										<AlertTriangle className='mt-1 h-4 w-4 shrink-0' />
-										<span>{flag}</span>
-									</li>
-								))}
-							</ul>
-						</SurfaceCard>
-					</div>
-				)
-			case 'market':
-				return (
-					<div className='space-y-5'>
-						<div className='grid gap-4 md:grid-cols-3'>
-							{[
-								{ label: 'TAM', value: project.market.tam },
-								{ label: 'SAM', value: project.market.sam },
-								{ label: 'SOM', value: project.market.som },
-							].map((item) => (
-								<div
-									key={item.label}
-									className='rounded-[28px] bg-black/25 p-5'>
-									<p className='text-[0.68rem] uppercase tracking-[0.22em] text-white/35'>
-										{item.label}
-									</p>
-									<p className='mt-3 text-3xl font-semibold text-white'>
-										{item.value}
-									</p>
-								</div>
-							))}
-						</div>
+				<div className='grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]'>
+					<SurfaceCard
+						title='Novelty and commercialization wedge'
+						description='The technical edge tied to why the project may matter commercially.'>
+						<p className='text-sm leading-7 text-white/72'>{paper.noveltySummary}</p>
+					</SurfaceCard>
+					<SurfaceCard title='Domain classification'>
+						<p className='text-sm leading-7 text-white/72'>
+							{paper.domainClassification}
+						</p>
+						{badge && (
+							<span
+								className={cn(
+									'mt-3 inline-flex rounded-full px-3 py-1 text-[0.68rem] font-medium uppercase tracking-[0.18em]',
+									badge.className,
+								)}>
+								{badge.label}
+							</span>
+						)}
+					</SurfaceCard>
+				</div>
 
-						<SurfaceCard
-							title='Market summary'
-							description='The market surface is framed for institutional decision-making, not generic startup theatre.'>
-							<p className='max-w-4xl text-sm leading-7 text-white/72'>
-								{project.market.summary}
-							</p>
-						</SurfaceCard>
+				<SurfaceCard title='Key claims'>
+					<ul className='space-y-3'>
+						{paper.keyClaims.map((claim, i) => (
+							<li
+								key={i}
+								className='flex items-start gap-3 rounded-2xl bg-black/25 px-4 py-4 text-sm leading-7 text-white/70'>
+								<CheckCircle2 className='mt-1 h-4 w-4 shrink-0 text-[#68cc58]' />
+								<span>{claim}</span>
+							</li>
+						))}
+					</ul>
+				</SurfaceCard>
 
-						<SurfaceCard title='Competitor landscape'>
-							<div className='overflow-hidden rounded-[24px] bg-black/25'>
-								<div className='overflow-x-auto'>
-									<table className='min-w-full text-left text-sm'>
-										<thead className='bg-white/[0.04] text-[0.68rem] uppercase tracking-[0.22em] text-white/40'>
-											<tr>
-												<th className='px-4 py-3 font-medium'>Company</th>
-												<th className='px-4 py-3 font-medium'>Positioning</th>
-												<th className='px-4 py-3 font-medium'>Stage</th>
-												<th className='px-4 py-3 font-medium'>Signal</th>
+				{paper.claimConfidence && paper.claimConfidence.length > 0 && (
+					<SurfaceCard
+						title='Claim confidence'
+						description='Per-claim confidence with reasoning from the paper analysis agent.'>
+						<div className='overflow-hidden rounded-[24px] bg-black/25'>
+							<div className='overflow-x-auto'>
+								<table className='min-w-full text-left text-sm'>
+									<thead className='bg-white/[0.04] text-[0.68rem] uppercase tracking-[0.22em] text-white/40'>
+										<tr>
+											<th className='px-4 py-3 font-medium'>Claim</th>
+											<th className='px-4 py-3 font-medium'>Confidence</th>
+											<th className='px-4 py-3 font-medium'>Reasoning</th>
+										</tr>
+									</thead>
+									<tbody className='bg-black/20'>
+										{paper.claimConfidence.map((c, i) => (
+											<tr key={i}>
+												<td className='px-4 py-4 text-white/82'>{c.claim}</td>
+												<td className='px-4 py-4'>
+													<span
+														className={cn(
+															'inline-flex rounded-full px-2.5 py-1 text-[0.68rem] font-medium uppercase tracking-[0.16em]',
+															c.confidence === 'High'
+																? 'bg-emerald-400/10 text-emerald-300'
+																: c.confidence === 'Medium'
+																	? 'bg-amber-400/10 text-amber-300'
+																	: 'bg-red-400/10 text-red-300',
+														)}>
+														{c.confidence}
+													</span>
+												</td>
+												<td className='px-4 py-4 text-white/55'>{c.reasoning}</td>
 											</tr>
-										</thead>
-										<tbody className='bg-black/20'>
-											{project.market.competitors.map((competitor) => (
-												<tr key={competitor.id}>
-													<td className='px-4 py-4 font-medium text-white'>
-														{competitor.name}
-													</td>
-													<td className='px-4 py-4 text-white/62'>
-														{competitor.positioning}
-													</td>
-													<td className='px-4 py-4 text-white/62'>
-														{competitor.stage}
-													</td>
-													<td className='px-4 py-4 text-white/62'>
-														{competitor.signal}
-													</td>
-												</tr>
-											))}
-										</tbody>
-									</table>
-								</div>
+										))}
+									</tbody>
+								</table>
 							</div>
-						</SurfaceCard>
-
-						<div className='grid gap-4 xl:grid-cols-3'>
-							{project.market.signals.map((signal) => (
-								<SurfaceCard
-									key={signal.id}
-									title={signal.title}
-									description={`${signal.type} · ${signal.impact} impact`}
-									className='h-full'>
-									<p className='text-sm leading-7 text-white/68'>
-										{signal.summary}
-									</p>
-								</SurfaceCard>
-							))}
 						</div>
+					</SurfaceCard>
+				)}
+
+				{paper.commercializationBarriers.length > 0 && (
+					<SurfaceCard
+						title='Commercialization barriers'
+						description='Key obstacles identified before this research can reach market.'>
+						<ul className='space-y-3'>
+							{paper.commercializationBarriers.map((barrier, i) => (
+								<li
+									key={i}
+									className='flex items-start gap-3 rounded-2xl bg-[#e7c35a]/10 px-4 py-4 text-sm leading-7 text-[#f3db90]'>
+									<AlertTriangle className='mt-1 h-4 w-4 shrink-0' />
+									<span>{barrier}</span>
+								</li>
+							))}
+						</ul>
+					</SurfaceCard>
+				)}
+
+				{paper.institutionContext && (
+					<SurfaceCard title='Institution context'>
+						<p className='text-sm leading-7 text-white/72'>
+							{paper.institutionContext}
+						</p>
+					</SurfaceCard>
+				)}
+			</div>
+		)
+	}
+
+	const renderTrlIrlSummary = () => {
+		if (!project.trlIrl) {
+			return project.analysisStatus === 'PROCESSING' ? (
+				<div className='flex items-center gap-3 rounded-[28px] bg-white/[0.03] px-6 py-12 text-center'>
+					<Loader2 className='mx-auto h-5 w-5 animate-spin text-white/40' />
+				</div>
+			) : (
+				<ComingSoon label='TRL / IRL scoring pending' />
+			)
+		}
+
+		const { trlIrl } = project
+
+		return (
+			<div className='space-y-5'>
+				<div className='grid gap-4 md:grid-cols-3'>
+					<div className='rounded-[28px] bg-black/25 p-5'>
+						<p className='text-[0.68rem] uppercase tracking-[0.22em] text-white/35'>
+							TRL score
+						</p>
+						<p className='mt-3 text-3xl font-semibold text-white'>{trlIrl.trlScore}</p>
 					</div>
-				)
-			case 'feasibility':
-				return (
-					<div className='space-y-5'>
-						<div className='grid gap-4 md:grid-cols-3'>
-							{[
-								{ label: 'Timeline', value: project.feasibility.timeline },
-								{
-									label: 'Capital estimate',
-									value: project.feasibility.capitalEstimate,
-								},
-								{ label: 'Grant fit', value: project.feasibility.grantFit },
-							].map((item) => (
-								<div
-									key={item.label}
-									className='rounded-[28px] bg-black/25 p-5'>
+					<div className='rounded-[28px] bg-black/25 p-5'>
+						<p className='text-[0.68rem] uppercase tracking-[0.22em] text-white/35'>
+							IRL score
+						</p>
+						<p className='mt-3 text-3xl font-semibold text-white'>{trlIrl.irlScore}</p>
+					</div>
+					<div className='rounded-[28px] bg-black/25 p-5'>
+						<p className='text-[0.68rem] uppercase tracking-[0.22em] text-white/35'>
+							Confidence
+						</p>
+						<p className='mt-3 text-sm leading-7 text-white/72'>{trlIrl.confidence}</p>
+					</div>
+				</div>
+
+				{trlIrl.commercializationPathway && (
+					<div className='grid gap-4 md:grid-cols-2'>
+						<SurfaceCard title='Commercialization pathway'>
+							<span className='inline-flex items-center gap-2 rounded-full bg-[#e7c35a]/10 px-3 py-1.5 text-[0.68rem] font-medium uppercase tracking-[0.18em] text-[#f6df9d]'>
+								<TrendingUp className='h-3.5 w-3.5' />
+								{trlIrl.commercializationPathway.replace(/_/g, ' ')}
+							</span>
+							{trlIrl.pathwayRationale && (
+								<p className='mt-4 text-sm leading-7 text-white/68'>
+									{trlIrl.pathwayRationale}
+								</p>
+							)}
+						</SurfaceCard>
+						<div className='space-y-4'>
+							{trlIrl.timeToMarket && (
+								<div className='rounded-[28px] bg-black/25 p-5'>
 									<p className='text-[0.68rem] uppercase tracking-[0.22em] text-white/35'>
-										{item.label}
+										Time to market
 									</p>
 									<p className='mt-3 text-sm leading-7 text-white/72'>
-										{item.value}
+										{trlIrl.timeToMarket}
 									</p>
 								</div>
-							))}
-						</div>
-
-						<div className='grid gap-5 xl:grid-cols-2'>
-							<SurfaceCard title='Team requirements'>
-								<ul className='space-y-3'>
-									{project.feasibility.teamRequirements.map((item) => (
-										<li
-											key={item}
-											className='rounded-2xl bg-black/25 px-4 py-4 text-sm leading-7 text-white/70'>
-											{item}
-										</li>
-									))}
-								</ul>
-							</SurfaceCard>
-							<SurfaceCard title='Key risks'>
-								<ul className='space-y-3'>
-									{project.feasibility.keyRisks.map((item) => (
-										<li
-											key={item}
-											className='flex items-start gap-3 rounded-2xl bg-[#e7c35a]/10 px-4 py-4 text-sm leading-7 text-[#f3db90]'>
-											<AlertTriangle className='mt-1 h-4 w-4 shrink-0' />
-											<span>{item}</span>
-										</li>
-									))}
-								</ul>
-							</SurfaceCard>
-						</div>
-					</div>
-				)
-			case 'deck':
-				return (
-					<div className='space-y-5'>
-						<SurfaceCard
-							title='Funding ask'
-							description='The ask is tied to the next milestone, not a generic startup round size.'>
-							<p className='text-2xl font-semibold tracking-[-0.03em] text-white'>
-								{project.deck.fundingAsk}
-							</p>
-						</SurfaceCard>
-
-						<SurfaceCard title='Key narrative points'>
-							<ul className='space-y-3'>
-								{project.deck.keyNarrativePoints.map((item) => (
-									<li
-										key={item}
-										className='rounded-2xl bg-black/25 px-4 py-4 text-sm leading-7 text-white/70'>
-										{item}
-									</li>
-								))}
-							</ul>
-						</SurfaceCard>
-
-						<SurfaceCard title='Slide outline'>
-							<div className='overflow-hidden rounded-[24px] bg-black/25'>
-								<div className='overflow-x-auto'>
-									<table className='min-w-full text-left text-sm'>
-										<thead className='bg-white/[0.04] text-[0.68rem] uppercase tracking-[0.22em] text-white/40'>
-											<tr>
-												<th className='px-4 py-3 font-medium'>Order</th>
-												<th className='px-4 py-3 font-medium'>Slide</th>
-												<th className='px-4 py-3 font-medium'>Key point</th>
-											</tr>
-										</thead>
-										<tbody className='bg-black/20'>
-											{project.deck.slides.map((slide) => (
-												<tr key={slide.id}>
-													<td className='px-4 py-4 text-white/60'>{slide.order}</td>
-													<td className='px-4 py-4 font-medium text-white'>
-														{slide.title}
-													</td>
-													<td className='px-4 py-4 text-white/62'>
-														{slide.keyPoint}
-													</td>
-												</tr>
-											))}
-										</tbody>
-									</table>
+							)}
+							{trlIrl.domainRubricApplied && (
+								<div className='rounded-[28px] bg-black/25 p-5'>
+									<p className='text-[0.68rem] uppercase tracking-[0.22em] text-white/35'>
+										Domain rubric
+									</p>
+									<p className='mt-3 text-sm leading-7 text-white/72'>
+										{trlIrl.domainRubricApplied}
+									</p>
 								</div>
-							</div>
-						</SurfaceCard>
+							)}
+						</div>
 					</div>
-				)
-			case 'review':
-				return (
-					<div className='space-y-5'>
-						<div className='grid gap-4 lg:grid-cols-2'>
-							<SurfaceCard title='Review status'>
-								<p className='text-sm leading-7 text-white/72'>{project.review.status}</p>
-							</SurfaceCard>
-							<SurfaceCard title='Export readiness'>
-								<p className='text-sm leading-7 text-white/72'>
-									{project.review.exportReadiness}
+				)}
+
+				<SurfaceCard title='Scoring rationale'>
+					<ul className='space-y-3'>
+						{trlIrl.rationale.map((reason, i) => (
+							<li
+								key={i}
+								className='rounded-2xl bg-black/25 px-4 py-4 text-sm leading-7 text-white/70'>
+								{reason}
+							</li>
+						))}
+					</ul>
+				</SurfaceCard>
+
+				<SurfaceCard
+					title='Risk flags'
+					description='Watch-outs that keep the score from being interpreted too optimistically.'>
+					<ul className='space-y-3'>
+						{trlIrl.riskFlags.map((flag, i) => (
+							<li
+								key={i}
+								className='flex items-start gap-3 rounded-2xl bg-[#e7c35a]/10 px-4 py-4 text-sm leading-7 text-[#f3db90]'>
+								<AlertTriangle className='mt-1 h-4 w-4 shrink-0' />
+								<span>{flag}</span>
+							</li>
+						))}
+					</ul>
+				</SurfaceCard>
+
+				{trlIrl.recommendedGrants.length > 0 && (
+					<SurfaceCard title='Recommended grants'>
+						<ul className='space-y-3'>
+							{trlIrl.recommendedGrants.map((grant, i) => (
+								<li
+									key={i}
+									className='flex items-start gap-3 rounded-2xl bg-black/25 px-4 py-4 text-sm leading-7 text-white/70'>
+									<Sparkles className='mt-1 h-4 w-4 shrink-0 text-[#e7c35a]' />
+									<span>{grant}</span>
+								</li>
+							))}
+						</ul>
+					</SurfaceCard>
+				)}
+			</div>
+		)
+	}
+
+	const renderSummary = () => {
+		switch (activeStage) {
+			case 'PAPER':
+				return renderPaperSummary()
+			case 'TRL_IRL':
+				return renderTrlIrlSummary()
+			case 'MARKET':
+				if (project.market) {
+					return (
+						<div className='space-y-5'>
+							<div className='grid gap-4 md:grid-cols-3'>
+								{[
+									{ label: 'TAM', value: project.market.tam },
+									{ label: 'SAM', value: project.market.sam },
+									{ label: 'SOM', value: project.market.som },
+								].map((item) => (
+									<div key={item.label} className='rounded-[28px] bg-black/25 p-5'>
+										<p className='text-[0.68rem] uppercase tracking-[0.22em] text-white/35'>
+											{item.label}
+										</p>
+										<p className='mt-3 text-3xl font-semibold text-white'>
+											{item.value}
+										</p>
+									</div>
+								))}
+							</div>
+							<SurfaceCard title='Market summary'>
+								<p className='max-w-4xl text-sm leading-7 text-white/72'>
+									{project.market.summary}
 								</p>
 							</SurfaceCard>
 						</div>
-
-						<SurfaceCard title='Approval checklist'>
-							<ul className='space-y-3'>
-								{project.review.approvalChecklist.map((item) => (
-									<li
-										key={item}
-										className='flex items-start gap-3 rounded-2xl bg-black/25 px-4 py-4 text-sm leading-7 text-white/70'>
-										<CheckCircle2 className='mt-1 h-4 w-4 shrink-0 text-[#68cc58]' />
-										<span>{item}</span>
-									</li>
-								))}
-							</ul>
-						</SurfaceCard>
-
-						<SurfaceCard title='Reviewer notes'>
-							<div className='space-y-3'>
-								{project.review.notes.map((note) => (
-									<button
-										key={note.id}
-										type='button'
-										onClick={() => setDetailState({ type: 'review', item: note })}
-										className='flex w-full items-start justify-between gap-3 rounded-2xl bg-black/25 px-4 py-4 text-left transition-colors hover:bg-white/[0.04]'>
-										<div>
-											<p className='text-sm font-semibold text-white'>
-												{note.author} · {note.role}
-											</p>
-											<p className='mt-2 text-sm leading-7 text-white/62'>
-												{note.comment}
-											</p>
-										</div>
-										<ChevronRight className='mt-1 h-4 w-4 shrink-0 text-white/35' />
-									</button>
+					)
+				}
+				return <ComingSoon label='Market intelligence agent' />
+			case 'FEASIBILITY':
+				if (project.feasibility) {
+					return (
+						<div className='space-y-5'>
+							<div className='grid gap-4 md:grid-cols-3'>
+								{[
+									{ label: 'Timeline', value: project.feasibility.timeline },
+									{ label: 'Capital estimate', value: project.feasibility.capitalEstimate },
+									{ label: 'Grant fit', value: project.feasibility.grantFit },
+								].map((item) => (
+									<div key={item.label} className='rounded-[28px] bg-black/25 p-5'>
+										<p className='text-[0.68rem] uppercase tracking-[0.22em] text-white/35'>
+											{item.label}
+										</p>
+										<p className='mt-3 text-sm leading-7 text-white/72'>
+											{item.value}
+										</p>
+									</div>
 								))}
 							</div>
-						</SurfaceCard>
-					</div>
-				)
+						</div>
+					)
+				}
+				return <ComingSoon label='Feasibility agent' />
+			case 'DECK':
+				return <ComingSoon label='Deck generation agent' />
+			case 'REVIEW':
+				return <ComingSoon label='Review agent' />
 		}
 	}
 
 	return (
 		<>
 			<section className='space-y-6'>
+				{/* ── Hero header ─────────────────────────────────────────── */}
 				<div className='overflow-hidden rounded-[34px] bg-[radial-gradient(circle_at_top_left,_rgba(231,195,90,0.08),_transparent_22%),linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02))] px-6 py-7 sm:px-8'>
 					<div className='flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between'>
 						<div className='min-w-0 max-w-4xl'>
@@ -599,7 +759,10 @@ const ProjectWorkspace = ({
 								{project.title}
 							</h1>
 							<p className='mt-4 max-w-3xl text-sm leading-7 text-white/56 sm:text-base'>
-								{project.institution} · {project.lab} · Owner {project.owner}. This project is currently anchored in the {activeStageMeta.label.toLowerCase()} stage and carries a readiness score of {project.readinessScore}/100.
+								{project.institution.name} · {project.owner.name ?? project.owner.email}
+								{project.readinessScore > 0 && (
+									<> · Readiness {project.readinessScore}/100</>
+								)}
 							</p>
 						</div>
 
@@ -621,6 +784,7 @@ const ProjectWorkspace = ({
 						</div>
 					</div>
 
+					{/* ── Stat cards ─────────────────────────────────────── */}
 					<div className='mt-6 grid gap-4 lg:grid-cols-4'>
 						<div className='rounded-[26px] bg-black/25 p-5'>
 							<p className='text-[0.68rem] uppercase tracking-[0.22em] text-white/35'>
@@ -635,29 +799,37 @@ const ProjectWorkspace = ({
 							<p className='text-[0.68rem] uppercase tracking-[0.22em] text-white/35'>
 								Domain
 							</p>
-							<p className='mt-3 text-sm leading-7 text-white/72'>
-								{project.domain}
-							</p>
+							<p className='mt-3 text-sm leading-7 text-white/72'>{project.domain}</p>
 						</div>
 						<div className='rounded-[26px] bg-black/25 p-5'>
 							<p className='text-[0.68rem] uppercase tracking-[0.22em] text-white/35'>
 								Institution
 							</p>
 							<p className='mt-3 text-sm leading-7 text-white/72'>
-								{project.institution}
+								{project.institution.name}
 							</p>
 						</div>
 						<div className='rounded-[26px] bg-black/25 p-5'>
 							<p className='text-[0.68rem] uppercase tracking-[0.22em] text-white/35'>
-								Next move
+								Analysis
 							</p>
 							<p className='mt-3 text-sm leading-7 text-white/72'>
-								{project.shortNote}
+								{project.analysisStatus === 'COMPLETE'
+									? 'Complete'
+									: project.analysisStatus === 'PROCESSING'
+										? 'In progress...'
+										: project.analysisStatus === 'FAILED'
+											? 'Failed'
+											: 'Not started'}
 							</p>
 						</div>
 					</div>
 				</div>
 
+				{/* ── Analysis progress banner ────────────────────────────── */}
+				<AnalysisProgress project={project} />
+
+				{/* ── Stage tabs ──────────────────────────────────────────── */}
 				<div className='overflow-x-auto pb-1'>
 					<div className='flex min-w-max gap-3'>
 						{project.stages.map((stage, index) => {
@@ -679,14 +851,16 @@ const ProjectWorkspace = ({
 										<span
 											className={cn(
 												'inline-flex h-9 w-9 items-center justify-center rounded-xl',
-												isActive
-													? 'bg-white/[0.08]'
-													: 'bg-black/30',
+												isActive ? 'bg-white/[0.08]' : 'bg-black/30',
 											)}>
 											<Icon className='h-4 w-4' />
 										</span>
 										<span className='text-[0.68rem] uppercase tracking-[0.22em] text-white/35'>
-											0{index + 1}
+											{stage.status === 'COMPLETE' ? (
+												<CheckCircle2 className='inline h-3.5 w-3.5 text-emerald-400' />
+											) : (
+												`0${index + 1}`
+											)}
 										</span>
 									</div>
 									<p className='mt-4 text-base font-semibold'>{stage.label}</p>
@@ -699,6 +873,7 @@ const ProjectWorkspace = ({
 					</div>
 				</div>
 
+				{/* ── Content area ────────────────────────────────────────── */}
 				<div className='space-y-5'>
 					<div className='flex flex-wrap gap-2'>
 						{(['summary', 'evidence', 'notes'] as WorkspaceTab[]).map((tab) => (
@@ -751,7 +926,8 @@ const ProjectWorkspace = ({
 														className='flex w-full items-start justify-between gap-3 rounded-2xl bg-black/25 px-4 py-4 text-left transition-colors hover:bg-white/[0.04]'>
 														<div>
 															<p className='text-sm font-semibold text-white'>
-																{note.author} · {note.role}
+																{note.author.name ?? note.author.email} ·{' '}
+																{note.author.role}
 															</p>
 															<p className='mt-2 text-sm leading-7 text-white/62'>
 																{note.comment}
@@ -771,12 +947,11 @@ const ProjectWorkspace = ({
 				</div>
 			</section>
 
+			{/* ── Detail drawer ───────────────────────────────────────────── */}
 			<Dialog
 				open={Boolean(detailState)}
 				onOpenChange={(open) => {
-					if (!open) {
-						setDetailState(null)
-					}
+					if (!open) setDetailState(null)
 				}}>
 				<DialogContent className='!left-auto !right-0 !top-0 !h-dvh !max-h-dvh !w-[min(560px,100vw)] !max-w-none !translate-x-0 !translate-y-0 rounded-none bg-[#0a0b0e] p-0 text-white'>
 					<div className='flex h-full flex-col'>
@@ -831,11 +1006,9 @@ const ProjectWorkspace = ({
 												Linked stage
 											</p>
 											<p className='mt-3 text-lg font-semibold text-white'>
-												{
-													project.stages.find(
-														(stage) => stage.key === detailState.item.stageKey,
-													)?.label
-												}
+												{project.stages.find(
+													(s) => s.key === detailState.item.stageKey,
+												)?.label}
 											</p>
 										</div>
 									</div>
@@ -847,10 +1020,10 @@ const ProjectWorkspace = ({
 											{detailState.item.status}
 										</div>
 										<h3 className='text-2xl font-semibold tracking-[-0.03em] text-white'>
-											{detailState.item.author}
+											{detailState.item.author.name ?? detailState.item.author.email}
 										</h3>
 										<p className='text-sm leading-7 text-white/58'>
-											{detailState.item.role}
+											{detailState.item.author.role}
 										</p>
 									</div>
 

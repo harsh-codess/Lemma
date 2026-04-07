@@ -9,7 +9,7 @@ import {
   SimpleNavbar,
 } from "@/components/ui/core-header-navbar";
 import { GradientText } from "@/components/ui/gradient-text";
-import Frame760 from "@/components/ui/sidebar-component";
+import { LemmaSidebar } from "@/components/ui/sidebar";
 
 export default function DemoOne() {
   const [type, setType] = useState("/");
@@ -70,7 +70,11 @@ export function GradientTextDemo() {
 }
 
 export function SidebarComponentDemo() {
-  return <Frame760 />;
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-[#040405] p-4">
+      <LemmaSidebar />
+    </div>
+  );
 }
 
 export function AIInputDemo() {
