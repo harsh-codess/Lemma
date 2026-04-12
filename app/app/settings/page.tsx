@@ -2,7 +2,6 @@
 
 import { useUser, useClerk } from '@clerk/nextjs'
 import {
-	Settings,
 	User,
 	Building2,
 	Shield,
@@ -113,44 +112,6 @@ export default function SettingsPage() {
 							Manage
 							<ExternalLink className='ml-2 h-3.5 w-3.5' />
 						</Button>
-					</div>
-				</div>
-			</div>
-
-			{/* Preferences */}
-			<div className='overflow-hidden rounded-[22px] border border-white/[0.04] bg-[linear-gradient(180deg,rgba(255,255,255,0.035),rgba(255,255,255,0.012))]'>
-				<div className='border-b border-white/[0.04] px-6 py-4'>
-					<h2 className='flex items-center gap-2 text-sm font-semibold text-white'>
-						<Settings className='h-4 w-4 text-white/40' />
-						Preferences
-					</h2>
-				</div>
-				<div className='space-y-5 p-6'>
-					<div className='flex items-center justify-between'>
-						<div>
-							<p className='text-sm font-medium text-white'>
-								Default domain
-							</p>
-							<p className='mt-0.5 text-xs text-white/35'>
-								Pre-fill domain field on new project creation.
-							</p>
-						</div>
-						<span className='rounded-full bg-white/[0.05] px-2.5 py-1 text-[0.65rem] uppercase tracking-[0.16em] text-white/30'>
-							Coming soon
-						</span>
-					</div>
-					<div className='flex items-center justify-between'>
-						<div>
-							<p className='text-sm font-medium text-white'>
-								Pipeline notifications
-							</p>
-							<p className='mt-0.5 text-xs text-white/35'>
-								Get notified when an analysis completes or fails.
-							</p>
-						</div>
-						<span className='rounded-full bg-white/[0.05] px-2.5 py-1 text-[0.65rem] uppercase tracking-[0.16em] text-white/30'>
-							Coming soon
-						</span>
 					</div>
 				</div>
 			</div>

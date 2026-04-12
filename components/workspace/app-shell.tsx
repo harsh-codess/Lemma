@@ -16,16 +16,20 @@ import {
 } from '@/components/ui/dialog'
 import { LemmaSidebar } from '@/components/ui/sidebar'
 
+const getPageTitle = (pathname: string) => {
+	if (pathname === '/app') return 'Projects'
+	if (pathname === '/app/projects/new') return 'New project'
+	if (pathname.startsWith('/app/projects/')) return 'Workspace'
+	if (pathname === '/app/review') return 'Review'
+	if (pathname === '/app/exports') return 'Exports'
+	if (pathname === '/app/settings') return 'Settings'
+	return 'App'
+}
+
 const WorkspaceAppShell = ({ children }: { children: React.ReactNode }) => {
 	const pathname = usePathname()
-	const pageTitle =
-		pathname === '/app'
-			? 'Projects'
-			: pathname === '/app/projects/new'
-				? 'New project'
-				: pathname.startsWith('/app/projects/')
-					? 'Workspace'
-					: 'App'
+	const pageTitle = getPageTitle(pathname)
+	const showGlobalNewProject = pathname !== '/app/projects/new'
 
 	return (
 		<div className='min-h-screen bg-[#040405] text-white'>
@@ -77,14 +81,16 @@ const WorkspaceAppShell = ({ children }: { children: React.ReactNode }) => {
 								</div>
 							</div>
 
-							<Button
-								asChild
-								className='h-11 rounded-full bg-white px-5 text-sm font-semibold text-black hover:bg-white/90'>
-								<Link href='/app/projects/new'>
-									New project
-									<ArrowRight className='ml-2 h-4 w-4' />
-								</Link>
-							</Button>
+							{showGlobalNewProject && (
+								<Button
+									asChild
+									className='hidden h-11 rounded-full bg-white px-5 text-sm font-semibold text-black hover:bg-white/90 sm:inline-flex'>
+									<Link href='/app/projects/new'>
+										New project
+										<ArrowRight className='ml-2 h-4 w-4' />
+									</Link>
+								</Button>
+							)}
 
 							<div className='flex h-11 items-center rounded-full bg-white/[0.05] px-1.5'>
 								<UserButton

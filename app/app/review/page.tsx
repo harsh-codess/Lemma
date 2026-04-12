@@ -9,7 +9,9 @@ import {
 	CheckCircle2,
 	Sparkles,
 	ChevronRight,
+	Plus,
 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 type ReviewProject = {
 	id: string
@@ -39,6 +41,9 @@ export default function ReviewPage() {
 	const inProgress = projects.filter((p) => p.analysisStatus === 'PROCESSING')
 	const needsAttention = completed.filter((p) => p.readinessScore > 0 && p.readinessScore < 40)
 	const highReadiness = completed.filter((p) => p.readinessScore >= 60)
+	const drafts = projects.filter(
+		(p) => p.analysisStatus === 'IDLE' || p.analysisStatus === 'FAILED',
+	)
 
 	return (
 		<section className='space-y-8'>
@@ -55,51 +60,52 @@ export default function ReviewPage() {
 				</p>
 			</div>
 
-			{/* Quick stats */}
-			<div className='grid gap-3 sm:grid-cols-4'>
-				{[
-					{
-						label: 'Total projects',
-						value: projects.length,
-						icon: ClipboardCheck,
-						color: 'text-white/70',
-					},
-					{
-						label: 'Analyzing',
-						value: inProgress.length,
-						icon: Loader2,
-						color: 'text-[#e7c35a]',
-					},
-					{
-						label: 'High readiness',
-						value: highReadiness.length,
-						icon: CheckCircle2,
-						color: 'text-emerald-400',
-					},
-					{
-						label: 'Needs attention',
-						value: needsAttention.length,
-						icon: AlertTriangle,
-						color: 'text-amber-400',
-					},
-				].map((stat) => (
-					<div
-						key={stat.label}
-						className='rounded-[22px] border border-white/[0.04] bg-[linear-gradient(180deg,rgba(255,255,255,0.035),rgba(255,255,255,0.012))] p-5'>
-						<div className='flex items-center gap-2'>
-							<stat.icon
-								className={`h-4 w-4 ${stat.color} ${stat.label === 'Analyzing' && inProgress.length > 0 ? 'animate-spin' : ''}`}
-							/>
-							<span className='text-[0.65rem] uppercase tracking-[0.22em] text-white/35'>
-								{stat.label}
-							</span>
+			{!isLoading && projects.length > 0 && (
+				<div className='grid gap-3 sm:grid-cols-4'>
+					{[
+						{
+							label: 'Total projects',
+							value: projects.length,
+							icon: ClipboardCheck,
+							color: 'text-white/70',
+						},
+						{
+							label: 'Analyzing',
+							value: inProgress.length,
+							icon: Loader2,
+							color: 'text-[#e7c35a]',
+						},
+						{
+							label: 'High readiness',
+							value: highReadiness.length,
+							icon: CheckCircle2,
+							color: 'text-emerald-400',
+						},
+						{
+							label: 'Needs attention',
+							value: needsAttention.length,
+							icon: AlertTriangle,
+							color: 'text-amber-400',
+						},
+					].map((stat) => (
+						<div
+							key={stat.label}
+							className='rounded-[22px] bg-[linear-gradient(180deg,rgba(255,255,255,0.035),rgba(255,255,255,0.012))] p-5'>
+							<div className='flex items-center gap-2'>
+								<stat.icon
+									className={`h-4 w-4 ${stat.color} ${stat.label === 'Analyzing' && inProgress.length > 0 ? 'animate-spin' : ''}`}
+								/>
+								<span className='text-[0.65rem] uppercase tracking-[0.22em] text-white/35'>
+									{stat.label}
+								</span>
+							</div>
+							<p className='mt-3 text-2xl font-semibold text-white'>
+								{stat.value}
+							</p>
 						</div>
-						<p className='mt-3 text-2xl font-semibold text-white'>
-							{isLoading ? '—' : stat.value}
-						</p>
-					</div>
-				))}
-			</div>
+					))}
+				</div>
+			)}
 
 			{/* Project list */}
 			{isLoading ? (
@@ -154,15 +160,72 @@ export default function ReviewPage() {
 							</div>
 						</div>
 					)}
+
+					{completed.length === 0 && inProgress.length === 0 && (
+						<ReviewEmptyPanel
+							title='Nothing is ready for review yet'
+							description='Create a project and run its analysis pipeline. Once the paper has structured outputs, it will move into this review queue.'
+							ctaLabel='Create project'
+							ctaHref='/app/projects/new'
+						/>
+					)}
+
+					{drafts.length > 0 && (
+						<div>
+							<h2 className='mb-3 text-sm font-medium text-white/50'>
+								Drafts and failed runs
+							</h2>
+							<div className='space-y-2'>
+								{drafts.map((project) => (
+									<ProjectRow key={project.id} project={project} />
+								))}
+							</div>
+						</div>
+					)}
 				</div>
 			) : (
-				<div className='rounded-[22px] border border-white/[0.04] bg-white/[0.02] px-6 py-14 text-center'>
-					<p className='text-sm text-white/40'>
-						No projects to review yet. Start by creating a project and running the analysis pipeline.
-					</p>
-				</div>
+				<ReviewEmptyPanel
+					title='No projects to review yet'
+					description='Start with a paper upload. Lemma will create a workspace first, then reviewable analysis will appear here.'
+					ctaLabel='Create project'
+					ctaHref='/app/projects/new'
+				/>
 			)}
 		</section>
+	)
+}
+
+function ReviewEmptyPanel({
+	title,
+	description,
+	ctaLabel,
+	ctaHref,
+}: {
+	title: string
+	description: string
+	ctaLabel: string
+	ctaHref: string
+}) {
+	return (
+		<div className='rounded-[28px] bg-white/[0.025] px-6 py-14 text-center'>
+			<div className='mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#e7c35a]/10 text-[#e7c35a]'>
+				<ClipboardCheck className='h-5 w-5' />
+			</div>
+			<h2 className='mt-5 text-xl font-semibold tracking-[-0.03em] text-white'>
+				{title}
+			</h2>
+			<p className='mx-auto mt-3 max-w-md text-sm leading-7 text-white/45'>
+				{description}
+			</p>
+			<Button
+				asChild
+				className='mt-6 h-11 rounded-full bg-white px-5 text-sm font-semibold text-black hover:bg-white/90'>
+				<Link href={ctaHref}>
+					<Plus className='mr-2 h-4 w-4' />
+					{ctaLabel}
+				</Link>
+			</Button>
+		</div>
 	)
 }
 
@@ -193,13 +256,17 @@ function ProjectRow({ project }: { project: ReviewProject }) {
 						? 'bg-emerald-400/10 text-emerald-400'
 						: project.analysisStatus === 'PROCESSING'
 							? 'bg-[#e7c35a]/10 text-[#e7c35a]'
-							: 'bg-white/[0.05] text-white/40'
+							: project.analysisStatus === 'FAILED'
+								? 'bg-red-400/10 text-red-300'
+								: 'bg-white/[0.05] text-white/40'
 				}`}>
 				{project.analysisStatus === 'COMPLETE'
 					? 'Done'
 					: project.analysisStatus === 'PROCESSING'
 						? 'Running'
-						: project.status}
+						: project.analysisStatus === 'FAILED'
+							? 'Failed'
+							: 'Draft'}
 			</span>
 			<ChevronRight className='h-4 w-4 shrink-0 text-white/20 transition-transform group-hover:translate-x-0.5 group-hover:text-white/40' />
 		</Link>

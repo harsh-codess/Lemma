@@ -16,6 +16,7 @@ import {
 	Sparkles,
 	TrendingUp,
 	Clock,
+	RefreshCw,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
@@ -135,6 +136,11 @@ const stageIcons: Record<StageKey, React.ComponentType<{ className?: string }>> 
 	REVIEW: ShieldCheck,
 }
 
+const stageOrder: StageKey[] = ['PAPER', 'TRL_IRL', 'MARKET', 'FEASIBILITY', 'DECK', 'REVIEW']
+
+const sortStages = <T extends { key: StageKey }>(stages: T[]) =>
+	[...stages].sort((a, b) => stageOrder.indexOf(a.key) - stageOrder.indexOf(b.key))
+
 const stageAccentClasses: Record<StageKey, string> = {
 	PAPER: 'text-sky-200 bg-sky-400/10',
 	TRL_IRL: 'text-violet-200 bg-violet-400/10',
@@ -193,7 +199,15 @@ const SurfaceCard = ({
 	</section>
 )
 
-const AnalysisProgress = ({ project }: { project: ApiProject }) => {
+const AnalysisProgress = ({
+	project,
+	onRetry,
+	isRetrying,
+}: {
+	project: ApiProject
+	onRetry: () => void
+	isRetrying: boolean
+}) => {
 	const step = project.paper ? (project.trlIrl ? 2 : 1) : 0
 	const totalAgents = 2
 	const isActive = project.analysisStatus === 'PROCESSING'
@@ -202,14 +216,29 @@ const AnalysisProgress = ({ project }: { project: ApiProject }) => {
 
 	if (project.analysisStatus === 'FAILED') {
 		return (
-			<div className='flex items-center gap-4 rounded-[28px] border border-red-500/20 bg-red-500/5 p-5'>
+			<div className='flex flex-col gap-4 rounded-[28px] border border-red-500/20 bg-red-500/5 p-5 sm:flex-row sm:items-center'>
 				<AlertTriangle className='h-5 w-5 shrink-0 text-red-400' />
-				<div>
+				<div className='min-w-0 flex-1'>
 					<p className='text-sm font-medium text-red-400'>Analysis failed</p>
 					<p className='mt-1 text-xs text-red-400/60'>
 						{project.analysisError ?? 'An unexpected error occurred during analysis.'}
 					</p>
 				</div>
+				{project.paperUrl && (
+					<Button
+						type='button'
+						onClick={onRetry}
+						disabled={isRetrying}
+						variant='outline'
+						className='h-10 rounded-full border-red-400/20 bg-red-400/10 px-4 text-xs font-semibold text-red-100 hover:bg-red-400/15 hover:text-white disabled:opacity-50'>
+						{isRetrying ? (
+							<Loader2 className='mr-2 h-3.5 w-3.5 animate-spin' />
+						) : (
+							<RefreshCw className='mr-2 h-3.5 w-3.5' />
+						)}
+						Retry analysis
+					</Button>
+				)}
 			</div>
 		)
 	}
@@ -246,6 +275,72 @@ const AnalysisProgress = ({ project }: { project: ApiProject }) => {
 		</div>
 	)
 }
+
+const AnalysisIdleState = ({
+	project,
+	onStart,
+	isStarting,
+	actionError,
+}: {
+	project: ApiProject
+	onStart: () => void
+	isStarting: boolean
+	actionError: string | null
+}) => {
+	if (project.analysisStatus !== 'IDLE') return null
+
+	return (
+		<div className='rounded-[28px] bg-white/[0.03] p-5'>
+			<div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
+				<div>
+					<p className='text-sm font-semibold text-white'>
+						{project.paperUrl ? 'Analysis is ready to start' : 'Paper upload is missing'}
+					</p>
+					<p className='mt-1 max-w-2xl text-xs leading-6 text-white/45'>
+						{project.paperUrl
+							? 'Start the AI pipeline to generate the paper readout, TRL/IRL score, and commercialization evidence.'
+							: 'This draft exists, but no paper is attached yet. Create a new project with a paper upload to run analysis.'}
+					</p>
+					{actionError && (
+						<p className='mt-2 text-xs leading-5 text-red-400'>{actionError}</p>
+					)}
+				</div>
+				{project.paperUrl ? (
+					<Button
+						type='button'
+						onClick={onStart}
+						disabled={isStarting}
+						className='h-10 rounded-full bg-white px-4 text-xs font-semibold text-black hover:bg-white/90 disabled:opacity-50'>
+						{isStarting ? (
+							<Loader2 className='mr-2 h-3.5 w-3.5 animate-spin' />
+						) : (
+							<Sparkles className='mr-2 h-3.5 w-3.5' />
+						)}
+						Start analysis
+					</Button>
+				) : (
+					<Button
+						asChild
+						className='h-10 rounded-full bg-white px-4 text-xs font-semibold text-black hover:bg-white/90'>
+						<Link href='/app/projects/new'>Create with paper</Link>
+					</Button>
+				)}
+			</div>
+		</div>
+	)
+}
+
+const StagePendingState = ({ label }: { label: string }) => (
+	<div className='flex flex-col items-center justify-center rounded-[28px] bg-white/[0.03] px-6 py-12 text-center'>
+		<div className='flex h-12 w-12 items-center justify-center rounded-2xl bg-[#e7c35a]/10'>
+			<Loader2 className='h-5 w-5 animate-spin text-[#e7c35a]' />
+		</div>
+		<p className='mt-4 text-sm font-semibold text-white'>{label}</p>
+		<p className='mt-2 max-w-sm text-xs leading-6 text-white/45'>
+			This section will fill in automatically while the analysis pipeline runs.
+		</p>
+	</div>
+)
 
 const renderEvidenceTable = (
 	evidence: EvidenceItem[],
@@ -318,6 +413,8 @@ const ProjectWorkspace = ({ projectId }: { projectId: string }) => {
 	const [project, setProject] = useState<ApiProject | null>(null)
 	const [isLoading, setIsLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
+	const [actionError, setActionError] = useState<string | null>(null)
+	const [isStartingAnalysis, setIsStartingAnalysis] = useState(false)
 	const [activeStage, setActiveStage] = useState<StageKey>('PAPER')
 	const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>('summary')
 	const [detailState, setDetailState] = useState<DetailState>(null)
@@ -334,7 +431,7 @@ const ProjectWorkspace = ({ projectId }: { projectId: string }) => {
 				return
 			}
 			const data: ApiProject = await res.json()
-			setProject(data)
+			setProject({ ...data, stages: sortStages(data.stages) })
 			setError(null)
 
 			// Set the active stage to the current one on first load
@@ -363,6 +460,27 @@ const ProjectWorkspace = ({ projectId }: { projectId: string }) => {
 	useEffect(() => {
 		setWorkspaceTab('summary')
 	}, [activeStage])
+
+	const handleStartAnalysis = useCallback(async () => {
+		if (!project || !project.paperUrl || isStartingAnalysis) return
+
+		setActionError(null)
+		setIsStartingAnalysis(true)
+		try {
+			const res = await fetch(`/api/projects/${project.id}/analyze`, {
+				method: 'POST',
+			})
+			if (!res.ok) {
+				const data = await res.json().catch(() => null)
+				throw new Error(data?.error ?? 'Failed to start analysis')
+			}
+			await fetchProject()
+		} catch (err) {
+			setActionError(err instanceof Error ? err.message : 'Failed to start analysis')
+		} finally {
+			setIsStartingAnalysis(false)
+		}
+	}, [fetchProject, isStartingAnalysis, project])
 
 	const activeStageMeta = project?.stages.find((s) => s.key === activeStage)
 
@@ -420,9 +538,7 @@ const ProjectWorkspace = ({ projectId }: { projectId: string }) => {
 	const renderPaperSummary = () => {
 		if (!project.paper) {
 			return project.analysisStatus === 'PROCESSING' ? (
-				<div className='flex items-center gap-3 rounded-[28px] bg-white/[0.03] px-6 py-12 text-center'>
-					<Loader2 className='mx-auto h-5 w-5 animate-spin text-white/40' />
-				</div>
+				<StagePendingState label='Paper analysis is running' />
 			) : (
 				<ComingSoon label='Paper analysis pending' />
 			)
@@ -550,9 +666,7 @@ const ProjectWorkspace = ({ projectId }: { projectId: string }) => {
 	const renderTrlIrlSummary = () => {
 		if (!project.trlIrl) {
 			return project.analysisStatus === 'PROCESSING' ? (
-				<div className='flex items-center gap-3 rounded-[28px] bg-white/[0.03] px-6 py-12 text-center'>
-					<Loader2 className='mx-auto h-5 w-5 animate-spin text-white/40' />
-				</div>
+				<StagePendingState label='TRL / IRL scoring is running' />
 			) : (
 				<ComingSoon label='TRL / IRL scoring pending' />
 			)
@@ -827,7 +941,17 @@ const ProjectWorkspace = ({ projectId }: { projectId: string }) => {
 				</div>
 
 				{/* ── Analysis progress banner ────────────────────────────── */}
-				<AnalysisProgress project={project} />
+				<AnalysisProgress
+					project={project}
+					onRetry={handleStartAnalysis}
+					isRetrying={isStartingAnalysis}
+				/>
+				<AnalysisIdleState
+					project={project}
+					onStart={handleStartAnalysis}
+					isStarting={isStartingAnalysis}
+					actionError={actionError}
+				/>
 
 				{/* ── Stage tabs ──────────────────────────────────────────── */}
 				<div className='overflow-x-auto pb-1'>

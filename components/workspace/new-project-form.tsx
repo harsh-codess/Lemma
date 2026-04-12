@@ -60,6 +60,7 @@ const NewProjectForm = () => {
 
 	const [phase, setPhase] = useState<SubmitPhase>('idle')
 	const [errorMessage, setErrorMessage] = useState('')
+	const [createdProjectId, setCreatedProjectId] = useState<string | null>(null)
 
 	const isValid = useMemo(
 		() => title.trim() && institution.trim() && lab.trim() && domain.trim() && file !== null,
@@ -81,6 +82,7 @@ const NewProjectForm = () => {
 		if (!isValid || (phase !== 'idle' && phase !== 'error')) return
 
 		setErrorMessage('')
+		setCreatedProjectId(null)
 
 		try {
 			// ── Step 1: Create project in DB ─────────────────────────────
@@ -101,6 +103,7 @@ const NewProjectForm = () => {
 				throw new Error(err.error?.formErrors?.[0] ?? err.error ?? 'Failed to create project')
 			}
 			const project = await createRes.json()
+			setCreatedProjectId(project.id)
 
 			// ── Step 2: Upload paper via server (no CORS) ────────────
 			if (file) {
@@ -315,12 +318,21 @@ const NewProjectForm = () => {
 					{phase === 'error' && (
 						<div className='w-full rounded-2xl border border-red-500/20 bg-red-500/5 px-5 py-3'>
 							<p className='text-sm text-red-400'>{errorMessage}</p>
-							<button
-								type='button'
-								onClick={() => setPhase('idle')}
-								className='mt-1 text-xs text-red-400/60 underline underline-offset-2 hover:text-red-400'>
-								Try again
-							</button>
+							<div className='mt-2 flex flex-wrap items-center gap-3'>
+								<button
+									type='button'
+									onClick={() => setPhase('idle')}
+									className='text-xs text-red-400/60 underline underline-offset-2 hover:text-red-400'>
+									Try again
+								</button>
+								{createdProjectId && (
+									<Link
+										href={`/app/projects/${createdProjectId}`}
+										className='text-xs text-red-100/70 underline underline-offset-2 hover:text-white'>
+										Open draft workspace
+									</Link>
+								)}
+							</div>
 						</div>
 					)}
 

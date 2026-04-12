@@ -14,6 +14,7 @@ import {
 import { useEffect, useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
+import ResearchPortfolioEmptyState from '@/components/workspace/research-portfolio-empty-state'
 
 type PortfolioProject = {
 	id: string
@@ -88,6 +89,10 @@ const ProjectPortfolio = () => {
 		[projects],
 	)
 
+	if (isLoading || !sortedProjects.length) {
+		return <ResearchPortfolioEmptyState />
+	}
+
 	return (
 		<section className='space-y-8'>
 			{/* Header */}
@@ -116,14 +121,7 @@ const ProjectPortfolio = () => {
 			</div>
 
 			{/* Content */}
-			{isLoading ? (
-				<div className='flex min-h-[30vh] items-center justify-center rounded-[32px] border border-white/[0.04] bg-white/[0.02]'>
-					<div className='flex items-center gap-3 text-white/55'>
-						<Loader2 className='h-5 w-5 animate-spin' />
-						<span className='text-sm'>Loading projects</span>
-					</div>
-				</div>
-			) : sortedProjects.length ? (
+			{sortedProjects.length ? (
 				<div className='space-y-3'>
 					{sortedProjects.map((project) => {
 						const currentStage = project.stages.find(
@@ -205,28 +203,7 @@ const ProjectPortfolio = () => {
 						)
 					})}
 				</div>
-			) : (
-				<div className='rounded-[28px] border border-white/[0.04] bg-white/[0.02] px-6 py-20 text-center'>
-					<div className='mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#e7c35a]/10'>
-						<Sparkles className='h-6 w-6 text-[#e7c35a]' />
-					</div>
-					<h2 className='mt-5 text-lg font-semibold text-white'>
-						No projects yet
-					</h2>
-					<p className='mx-auto mt-2 max-w-sm text-sm leading-6 text-white/45'>
-						Upload a research paper and let Lemma score its commercial
-						readiness through TRL/IRL, market, and feasibility analysis.
-					</p>
-					<Button
-						asChild
-						className='mt-6 h-11 rounded-full bg-white px-5 text-sm font-semibold text-black hover:bg-white/90'>
-						<Link href='/app/projects/new'>
-							<Plus className='mr-2 h-4 w-4' />
-							Create first project
-						</Link>
-					</Button>
-				</div>
-			)}
+			) : null}
 		</section>
 	)
 }
