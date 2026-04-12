@@ -18,7 +18,7 @@ import {
 	Clock,
 	RefreshCw,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -419,6 +419,8 @@ const ProjectWorkspace = ({ projectId }: { projectId: string }) => {
 	const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>('summary')
 	const [detailState, setDetailState] = useState<DetailState>(null)
 
+	const hasInitialLoad = useRef(false)
+
 	const fetchProject = useCallback(async () => {
 		try {
 			const res = await fetch(`/api/projects/${projectId}`)
@@ -434,28 +436,46 @@ const ProjectWorkspace = ({ projectId }: { projectId: string }) => {
 			setProject({ ...data, stages: sortStages(data.stages) })
 			setError(null)
 
-			// Set the active stage to the current one on first load
-			if (!project) {
+			// Set the active stage to the current one on first load only
+			if (!hasInitialLoad.current) {
 				setActiveStage(data.currentStage)
+				hasInitialLoad.current = true
 			}
 		} catch {
 			setError('Failed to load project')
 		} finally {
 			setIsLoading(false)
 		}
-	}, [projectId, project])
+	}, [projectId]) // stable — no `project` dep
 
 	// Initial fetch
 	useEffect(() => {
 		fetchProject()
-	}, []) // eslint-disable-line react-hooks/exhaustive-deps
+	}, [fetchProject])
 
-	// Poll every 5s while analysis is processing
+	// Poll every 5s while analysis is processing.
+	// Uses a lightweight status endpoint to avoid firing 17+ queries per tick.
 	useEffect(() => {
 		if (project?.analysisStatus !== 'PROCESSING') return
-		const interval = setInterval(fetchProject, 5000)
+
+		const tick = async () => {
+			try {
+				const res = await fetch(`/api/projects/${projectId}/status`)
+				if (!res.ok) return
+				const status: Pick<ApiProject, 'analysisStatus' | 'analysisError' | 'stages' | 'currentStage' | 'readinessScore'> = await res.json()
+				setProject((prev) => prev ? { ...prev, ...status, stages: sortStages(status.stages) } : prev)
+				// Full refresh when analysis completes so all agent data loads
+				if (status.analysisStatus !== 'PROCESSING') {
+					fetchProject()
+				}
+			} catch {
+				// ignore transient polling errors
+			}
+		}
+
+		const interval = setInterval(tick, 5000)
 		return () => clearInterval(interval)
-	}, [project?.analysisStatus, fetchProject])
+	}, [project?.analysisStatus, projectId, fetchProject])
 
 	useEffect(() => {
 		setWorkspaceTab('summary')

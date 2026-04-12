@@ -40,6 +40,14 @@ async function notify(channel: string, event: string, data: unknown) {
 	}
 }
 
+function isNonRetryablePaperAgentError(error: unknown): error is Error {
+	return (
+		error instanceof Error &&
+		(error.message === 'Agent 1 returned invalid JSON' ||
+			error.message.startsWith('Agent 1 output validation failed:'))
+	)
+}
+
 // ─── Pipeline Orchestrator ───────────────────────────────────────────────────
 //
 // Chains agents sequentially. Each agent is its own `step.run()`.
@@ -93,7 +101,7 @@ export const analyzePaper = inngest.createFunction(
 		})
 
 		// ── Agent 1: Paper Analysis ──────────────────────────────────────
-		const paperAnalysis = await step.run('agent-1-paper', async () => {
+		const paperAnalysisResult = await step.run('agent-1-paper', async () => {
 			await notify(`project-${projectId}`, 'agent-started', {
 				projectId,
 				agent: 1,
@@ -107,23 +115,54 @@ export const analyzePaper = inngest.createFunction(
 			const pdfBuffer = await response.arrayBuffer()
 			const pdfBase64 = Buffer.from(pdfBuffer).toString('base64')
 
-			// Run Agent 1 (includes Zod validation + logging internally)
-			const result = await runPaperAgent(pdfBase64, projectId)
+			try {
+				// Run Agent 1 (includes Zod validation + logging internally)
+				const result = await runPaperAgent(pdfBase64, projectId)
 
-			await notify(`project-${projectId}`, 'agent-complete', {
-				projectId,
-				agent: 1,
-				name: 'Paper Analysis',
-				stage: 'paper',
-				output: {
-					domain: result.domain,
-					claimCount: result.keyClaims.length,
-					readinessEstimate: result.initialReadinessEstimate,
-				},
-			})
+				await notify(`project-${projectId}`, 'agent-complete', {
+					projectId,
+					agent: 1,
+					name: 'Paper Analysis',
+					stage: 'paper',
+					output: {
+						domain: result.domain,
+						claimCount: result.keyClaims.length,
+						readinessEstimate: result.initialReadinessEstimate,
+					},
+				})
 
-			return result
+				return { aborted: false as const, result }
+			} catch (error) {
+				if (!isNonRetryablePaperAgentError(error)) {
+					throw error
+				}
+
+				pipelineLog.error('Agent 1 returned unusable output; aborting pipeline without retry', {
+					error: error.message,
+				})
+
+				await prisma.project.update({
+					where: { id: projectId },
+					data: {
+						analysisStatus: 'FAILED',
+						analysisError: error.message,
+					},
+				})
+
+				await notify(`project-${projectId}`, 'pipeline-failed', {
+					projectId,
+					error: error.message,
+				})
+
+				return { aborted: true as const, reason: error.message }
+			}
 		})
+
+		if (paperAnalysisResult.aborted) {
+			return { success: false, projectId, aborted: true, reason: paperAnalysisResult.reason }
+		}
+
+		const paperAnalysis = paperAnalysisResult.result
 
 		// ── Save Agent 1 output to DB ────────────────────────────────────
 		await step.run('save-agent-1', async () => {
