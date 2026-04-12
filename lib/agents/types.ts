@@ -17,6 +17,10 @@
 // ─── Agent 1: Paper Analysis ─────────────────────────────────────────────────
 
 export interface PaperAgentOutput {
+	// Document validation
+	documentType: 'RESEARCH_PAPER' | 'NOT_RESEARCH_PAPER'
+	rejectionReason?: string
+
 	// Core extraction
 	abstractSummary: string
 	noveltySummary: string

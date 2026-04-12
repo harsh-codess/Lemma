@@ -51,6 +51,7 @@ export async function GET(request: NextRequest) {
 		include: {
 			owner: { select: { name: true, email: true } },
 			institution: { select: { name: true } },
+			trlIrl: { select: { trlScore: true, irlScore: true } },
 			stages: { orderBy: { key: 'asc' } },
 		},
 		orderBy: { updatedAt: 'desc' },

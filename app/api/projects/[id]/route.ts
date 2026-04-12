@@ -76,6 +76,7 @@ const patchProjectSchema = z.object({
 	title: z.string().min(1).optional(),
 	domain: z.string().optional(),
 	shortNote: z.string().optional(),
+	institution: z.string().optional(),
 	status: z.enum(['DRAFT', 'IN_REVIEW', 'READY_FOR_EXPORT']).optional(),
 	currentStage: z.enum(['PAPER', 'TRL_IRL', 'MARKET', 'FEASIBILITY', 'DECK', 'REVIEW']).optional(),
 	readinessScore: z.number().int().min(0).max(100).optional(),
@@ -98,9 +99,24 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 		return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
 	}
 
+	const { institution: institutionName, ...projectData } = parsed.data
+
+	let institutionId: string | undefined
+	if (institutionName) {
+		const institutionRecord = await prisma.institution.upsert({
+			where: { name: institutionName },
+			update: {},
+			create: { name: institutionName },
+		})
+		institutionId = institutionRecord.id
+	}
+
 	const updated = await prisma.project.update({
 		where: { id: params.id },
-		data: parsed.data,
+		data: {
+			...projectData,
+			...(institutionId ? { institutionId } : {}),
+		},
 		include: {
 			stages: true,
 			institution: true,

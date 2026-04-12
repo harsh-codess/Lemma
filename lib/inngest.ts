@@ -127,6 +127,22 @@ export const analyzePaper = inngest.createFunction(
 
 		// ── Save Agent 1 output to DB ────────────────────────────────────
 		await step.run('save-agent-1', async () => {
+			// ── Early abort: not a research paper ────────────────────────
+			if (paperAnalysis.documentType === 'NOT_RESEARCH_PAPER') {
+				await prisma.project.update({
+					where: { id: projectId },
+					data: {
+						analysisStatus: 'FAILED',
+						analysisError: `Document rejected: ${paperAnalysis.rejectionReason ?? 'This does not appear to be a research paper or technical innovation document. Please upload an academic paper, patent, or technical report.'}`,
+					},
+				})
+				await notify(`project-${projectId}`, 'pipeline-failed', {
+					projectId,
+					error: paperAnalysis.rejectionReason ?? 'Not a research paper',
+				})
+				return { aborted: true }
+			}
+
 			await prisma.$transaction([
 				prisma.project.update({
 					where: { id: projectId },
@@ -171,7 +187,13 @@ export const analyzePaper = inngest.createFunction(
 				}),
 			])
 			pipelineLog.info('Agent 1 output saved to database')
+			return { aborted: false }
 		})
+
+		// ── Abort if not a research paper ────────────────────────────────
+		if (paperAnalysis.documentType === 'NOT_RESEARCH_PAPER') {
+			return { success: false, projectId, aborted: true, reason: paperAnalysis.rejectionReason }
+		}
 
 		// ── Agent 2: TRL/IRL Scoring ─────────────────────────────────────
 		const trlIrlAnalysis = await step.run('agent-2-trl-irl', async () => {

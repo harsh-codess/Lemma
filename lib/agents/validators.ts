@@ -14,6 +14,10 @@ import { z } from 'zod'
 // ─── Agent 1: Paper Analysis ─────────────────────────────────────────────────
 
 export const paperAgentSchema = z.object({
+	documentType: z
+		.enum(['RESEARCH_PAPER', 'NOT_RESEARCH_PAPER'])
+		.default('RESEARCH_PAPER'),
+	rejectionReason: z.string().optional(),
 	abstractSummary: z
 		.string()
 		.min(50, 'Abstract summary is too short — Gemini likely hallucinated or returned garbage'),
