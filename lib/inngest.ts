@@ -135,6 +135,10 @@ export const analyzePaper = inngest.createFunction(
 
 				return { aborted: false as const, result }
 			} catch (error) {
+				pipelineLog.error('Agent 1 execution failed', {
+					error: error instanceof Error ? error.message : 'Unknown error',
+				})
+
 				if (!isNonRetryableAgentError(error)) {
 					throw error
 				}
@@ -262,6 +266,10 @@ export const analyzePaper = inngest.createFunction(
 
 				return { aborted: false as const, result }
 			} catch (error) {
+				pipelineLog.error('Agent 2 execution failed', {
+					error: error instanceof Error ? error.message : 'Unknown error',
+				})
+
 				if (!isNonRetryableAgentError(error)) {
 					throw error
 				}

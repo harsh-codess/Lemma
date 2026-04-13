@@ -6,8 +6,8 @@ export default function SignUpPage() {
 	const { userId } = auth()
 
 	if (userId) {
-		redirect('/app')
+		redirect('/onboarding')
 	}
 
-	return <SignUpFlowPage afterAuthUrl='/app' />
+	return <SignUpFlowPage afterAuthUrl='/onboarding' />
 }

@@ -71,6 +71,13 @@ enum UserRole {
   ADMIN
 }
 
+enum OnboardingGoal {
+  PAPER_EVALUATION
+  COMMERCIALIZATION_PATHWAY
+  COMMITTEE_REVIEW
+  INVESTOR_DECK
+}
+
 // ─── Core Models ─────────────────────────────────────────────────────────────
 
 model Institution {
@@ -83,16 +90,21 @@ model Institution {
 }
 
 model User {
-  id            String      @id // Clerk user ID
-  email         String      @unique
-  name          String?
-  role          UserRole    @default(RESEARCHER)
-  institutionId String?
-  institution   Institution? @relation(fields: [institutionId], references: [id])
-  projects      Project[]
-  reviewNotes   ReviewNote[]
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  id                   String           @id // Clerk user ID
+  email                String           @unique
+  name                 String?
+  role                 UserRole         @default(RESEARCHER)
+  primaryGoal          OnboardingGoal?
+  labName              String?
+  researchFocus        String?
+  onboardingCompleted  Boolean          @default(false)
+  onboardingCompletedAt DateTime?
+  institutionId        String?
+  institution          Institution?     @relation(fields: [institutionId], references: [id])
+  projects             Project[]
+  reviewNotes          ReviewNote[]
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
 }
 
 model Project {

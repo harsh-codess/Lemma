@@ -10,39 +10,17 @@ import {
 	Sparkles,
 	X,
 } from 'lucide-react'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 import { Button } from '@/components/ui/button'
-
-const domainOptions = [
-	'Biotech / Materials',
-	'Medtech',
-	'Diagnostics',
-	'Energy / Advanced materials',
-	'Climate / Industrial',
-	'AI / Software',
-	'Other',
-]
-
-type SubmitPhase =
-	| 'idle'
-	| 'creating-project'
-	| 'uploading-paper'
-	| 'linking-paper'
-	| 'starting-analysis'
-	| 'done'
-	| 'error'
-
-const phaseLabels: Record<SubmitPhase, string> = {
-	idle: '',
-	'creating-project': 'Creating project...',
-	'uploading-paper': 'Uploading paper to secure storage...',
-	'linking-paper': 'Linking paper to project...',
-	'starting-analysis': 'Starting AI analysis pipeline...',
-	done: 'Redirecting to workspace...',
-	error: 'Something went wrong',
-}
+import {
+	isProjectDomainOption,
+	projectCreationPhaseLabels,
+	projectDomainOptions,
+	type ProjectCreationPhase,
+	runProjectCreationFlow,
+} from '@/lib/project-intake'
 
 const inputClassName =
 	'h-12 w-full rounded-2xl bg-white/[0.06] px-4 text-sm text-white placeholder:text-white/30 outline-none ring-0 transition-colors focus:bg-white/[0.09] focus:ring-1 focus:ring-[#e7c35a]/20'
@@ -54,18 +32,54 @@ const NewProjectForm = () => {
 	const [title, setTitle] = useState('')
 	const [institution, setInstitution] = useState('')
 	const [lab, setLab] = useState('')
-	const [domain, setDomain] = useState(domainOptions[0])
+	const [domain, setDomain] = useState<string>(projectDomainOptions[0])
 	const [shortNote, setShortNote] = useState('')
 	const [file, setFile] = useState<File | null>(null)
 
-	const [phase, setPhase] = useState<SubmitPhase>('idle')
+	const [phase, setPhase] = useState<ProjectCreationPhase>('idle')
 	const [errorMessage, setErrorMessage] = useState('')
 	const [createdProjectId, setCreatedProjectId] = useState<string | null>(null)
+	const [didHydrateDefaults, setDidHydrateDefaults] = useState(false)
 
 	const isValid = useMemo(
 		() => title.trim() && institution.trim() && lab.trim() && domain.trim() && file !== null,
 		[domain, institution, lab, title, file],
 	)
+
+	useEffect(() => {
+		if (didHydrateDefaults) return
+
+		let isCancelled = false
+
+		fetch('/api/onboarding')
+			.then((response) => (response.ok ? response.json() : null))
+			.then((data) => {
+				if (isCancelled || !data) return
+				if (!institution.trim() && data.institution) {
+					setInstitution(data.institution)
+				}
+				if (!lab.trim() && data.labName) {
+					setLab(data.labName)
+				}
+				if (
+					(!domain || domain === projectDomainOptions[0]) &&
+					data.researchFocus &&
+					isProjectDomainOption(data.researchFocus)
+				) {
+					setDomain(data.researchFocus)
+				}
+				setDidHydrateDefaults(true)
+			})
+			.catch(() => {
+				if (!isCancelled) {
+					setDidHydrateDefaults(true)
+				}
+			})
+
+		return () => {
+			isCancelled = true
+		}
+	}, [didHydrateDefaults, domain, institution, lab])
 
 	const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
 		const selected = event.target.files?.[0]
@@ -85,69 +99,21 @@ const NewProjectForm = () => {
 		setCreatedProjectId(null)
 
 		try {
-			// ── Step 1: Create project in DB ─────────────────────────────
-			setPhase('creating-project')
-			const createRes = await fetch('/api/projects', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					title: title.trim(),
-					institution: institution.trim(),
-					lab: lab.trim(),
-					domain,
-					shortNote: shortNote.trim() || undefined,
-				}),
+			if (!file) {
+				throw new Error('Upload a paper to create a project.')
+			}
+
+			const { projectId } = await runProjectCreationFlow({
+				title,
+				institution,
+				lab,
+				domain,
+				shortNote,
+				file,
+				onPhaseChange: setPhase,
+				onProjectCreated: setCreatedProjectId,
 			})
-			if (!createRes.ok) {
-				const err = await createRes.json()
-				throw new Error(err.error?.formErrors?.[0] ?? err.error ?? 'Failed to create project')
-			}
-			const project = await createRes.json()
-			setCreatedProjectId(project.id)
-
-			// ── Step 2: Upload paper via server (no CORS) ────────────
-			if (file) {
-				setPhase('uploading-paper')
-				const formData = new FormData()
-				formData.append('file', file)
-				formData.append('projectId', project.id)
-
-				const uploadRes = await fetch('/api/upload', {
-					method: 'POST',
-					body: formData,
-				})
-				if (!uploadRes.ok) {
-					const err = await uploadRes.json()
-					throw new Error(err.error ?? 'Failed to upload paper')
-				}
-				const { publicUrl } = await uploadRes.json()
-
-				// ── Step 3: Link paper URL to project ────────────────────
-				setPhase('linking-paper')
-				const patchRes = await fetch(`/api/projects/${project.id}`, {
-					method: 'PATCH',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						paperUrl: publicUrl,
-						paperFileName: file.name,
-					}),
-				})
-				if (!patchRes.ok) throw new Error('Failed to link paper to project')
-
-				// ── Step 4: Trigger analysis pipeline ────────────────────
-				setPhase('starting-analysis')
-				const analyzeRes = await fetch(`/api/projects/${project.id}/analyze`, {
-					method: 'POST',
-				})
-				if (!analyzeRes.ok) {
-					const err = await analyzeRes.json()
-					throw new Error(err.error ?? 'Failed to start analysis')
-				}
-			}
-
-			// ── Done: redirect to workspace ──────────────────────────────
-			setPhase('done')
-			router.push(`/app/projects/${project.id}`)
+			router.push(`/app/projects/${projectId}`)
 		} catch (err) {
 			setPhase('error')
 			setErrorMessage(err instanceof Error ? err.message : 'An unexpected error occurred')
@@ -289,7 +255,7 @@ const NewProjectForm = () => {
 								onChange={(e) => setDomain(e.target.value)}
 								className={`${inputClassName} appearance-none`}
 								disabled={isSubmitting}>
-								{domainOptions.map((option) => (
+								{projectDomainOptions.map((option) => (
 									<option key={option} value={option} className='bg-[#0c0d10]'>
 										{option}
 									</option>
@@ -341,7 +307,7 @@ const NewProjectForm = () => {
 							<Loader2 className='h-4 w-4 shrink-0 animate-spin text-[#e7c35a]' />
 							<div className='flex-1'>
 								<p className='text-sm font-medium text-[#e7c35a]'>
-									{phaseLabels[phase]}
+									{projectCreationPhaseLabels[phase]}
 								</p>
 								<div className='mt-2 flex gap-1'>
 									{(['creating-project', 'uploading-paper', 'linking-paper', 'starting-analysis'] as const).map(

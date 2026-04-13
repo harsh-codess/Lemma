@@ -7,7 +7,7 @@ import Footer from "@/components/footer";
 import Header from "@/components/header";
 
 const AUTH_PATH_PREFIXES = ["/sign-in", "/sign-up"];
-const CHROMELESS_PATH_PREFIXES = ["/sso-callback", "/app"];
+const CHROMELESS_PATH_PREFIXES = ["/sso-callback", "/app", "/onboarding"];
 
 const SiteShell = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
