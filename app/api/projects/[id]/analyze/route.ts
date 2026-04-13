@@ -64,19 +64,58 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
 		remaining: rateLimit.remaining,
 	})
 
-	// Fire the Inngest event — returns in milliseconds, job runs in background
-	await inngest.send({
-		name: 'paper/uploaded',
+	// Mark as processing immediately so the workspace reflects the action
+	// even before the background runner picks up the event.
+	await prisma.project.update({
+		where: { id: project.id },
 		data: {
-			projectId: project.id,
-			paperUrl: project.paperUrl,
-			userId,
+			analysisStatus: 'PROCESSING',
+			analysisError: null,
 		},
 	})
 
+	try {
+		// Fire the Inngest event — returns in milliseconds, job runs in background
+		await inngest.send({
+			name: 'paper/uploaded',
+			data: {
+				projectId: project.id,
+				paperUrl: project.paperUrl,
+				userId,
+			},
+		})
+	} catch (error) {
+		log.error('Failed to queue analysis pipeline', {
+			projectId: project.id,
+			userId,
+			error: error instanceof Error ? error.message : 'Unknown error',
+		})
+
+		await prisma.project.update({
+			where: { id: project.id },
+			data: {
+				analysisStatus: 'FAILED',
+				analysisError:
+					error instanceof Error
+						? `Could not queue analysis: ${error.message}`
+						: 'Could not queue analysis.',
+			},
+		})
+
+		return NextResponse.json(
+			{
+				error:
+					error instanceof Error
+						? `Could not queue analysis: ${error.message}`
+						: 'Could not queue analysis.',
+			},
+			{ status: 500 }
+		)
+	}
+
 	return NextResponse.json({
 		success: true,
-		message: 'Analysis pipeline started',
+		message: 'Analysis pipeline queued',
 		remaining: rateLimit.remaining,
 	})
 }

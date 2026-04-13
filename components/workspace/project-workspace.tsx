@@ -494,6 +494,15 @@ const ProjectWorkspace = ({ projectId }: { projectId: string }) => {
 				const data = await res.json().catch(() => null)
 				throw new Error(data?.error ?? 'Failed to start analysis')
 			}
+			setProject((current) =>
+				current
+					? {
+							...current,
+							analysisStatus: 'PROCESSING',
+							analysisError: null,
+						}
+					: current,
+			)
 			await fetchProject()
 		} catch (err) {
 			setActionError(err instanceof Error ? err.message : 'Failed to start analysis')

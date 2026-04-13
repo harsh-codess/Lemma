@@ -40,11 +40,13 @@ async function notify(channel: string, event: string, data: unknown) {
 	}
 }
 
-function isNonRetryablePaperAgentError(error: unknown): error is Error {
+function isNonRetryableAgentError(error: unknown): error is Error {
 	return (
 		error instanceof Error &&
 		(error.message === 'Agent 1 returned invalid JSON' ||
-			error.message.startsWith('Agent 1 output validation failed:'))
+			error.message.startsWith('Agent 1 output validation failed:') ||
+			error.message === 'Agent 2 returned invalid JSON' ||
+			error.message.startsWith('Agent 2 output validation failed:'))
 	)
 }
 
@@ -133,7 +135,7 @@ export const analyzePaper = inngest.createFunction(
 
 				return { aborted: false as const, result }
 			} catch (error) {
-				if (!isNonRetryablePaperAgentError(error)) {
+				if (!isNonRetryableAgentError(error)) {
 					throw error
 				}
 
@@ -235,7 +237,7 @@ export const analyzePaper = inngest.createFunction(
 		}
 
 		// ── Agent 2: TRL/IRL Scoring ─────────────────────────────────────
-		const trlIrlAnalysis = await step.run('agent-2-trl-irl', async () => {
+		const trlIrlAnalysisResult = await step.run('agent-2-trl-irl', async () => {
 			await notify(`project-${projectId}`, 'agent-started', {
 				projectId,
 				agent: 2,
@@ -243,22 +245,53 @@ export const analyzePaper = inngest.createFunction(
 				stage: 'trl-irl',
 			})
 
-			const result = await runTrlIrlAgent(paperAnalysis, projectId)
+			try {
+				const result = await runTrlIrlAgent(paperAnalysis, projectId)
 
-			await notify(`project-${projectId}`, 'agent-complete', {
-				projectId,
-				agent: 2,
-				name: 'TRL/IRL Scoring',
-				stage: 'trl-irl',
-				output: {
-					trlScore: result.trlScore,
-					irlScore: result.irlScore,
-					riskCount: result.riskFlags.length,
-				},
-			})
+				await notify(`project-${projectId}`, 'agent-complete', {
+					projectId,
+					agent: 2,
+					name: 'TRL/IRL Scoring',
+					stage: 'trl-irl',
+					output: {
+						trlScore: result.trlScore,
+						irlScore: result.irlScore,
+						riskCount: result.riskFlags.length,
+					},
+				})
 
-			return result
+				return { aborted: false as const, result }
+			} catch (error) {
+				if (!isNonRetryableAgentError(error)) {
+					throw error
+				}
+
+				pipelineLog.error('Agent 2 returned unusable output; aborting pipeline without retry', {
+					error: (error as Error).message,
+				})
+
+				await prisma.project.update({
+					where: { id: projectId },
+					data: {
+						analysisStatus: 'FAILED',
+						analysisError: (error as Error).message,
+					},
+				})
+
+				await notify(`project-${projectId}`, 'pipeline-failed', {
+					projectId,
+					error: (error as Error).message,
+				})
+
+				return { aborted: true as const, reason: (error as Error).message }
+			}
 		})
+
+		if (trlIrlAnalysisResult.aborted) {
+			return { success: false, projectId, aborted: true, reason: trlIrlAnalysisResult.reason }
+		}
+
+		const trlIrlAnalysis = trlIrlAnalysisResult.result
 
 		// ── Save Agent 2 output to DB ────────────────────────────────────
 		await step.run('save-agent-2', async () => {
