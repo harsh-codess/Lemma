@@ -1,6 +1,22 @@
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 
+/**
+ * Server-side upload of an in-memory buffer (e.g. a rendered deck export).
+ * Returns the storage key; pair with getPublicUrl()/getDownloadPresignedUrl().
+ */
+export async function uploadBuffer(key: string, body: Buffer, contentType: string) {
+	await r2.send(
+		new PutObjectCommand({
+			Bucket: BUCKET_NAME,
+			Key: key,
+			Body: body,
+			ContentType: contentType,
+		}),
+	)
+	return key
+}
+
 export const r2 = new S3Client({
 	region: 'auto',
 	endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,

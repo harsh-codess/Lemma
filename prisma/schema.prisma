@@ -147,6 +147,7 @@ model Project {
   deckSlides       DeckSlide[]
   copilotPrompts   CopilotPrompt[]
   retrievedSources RetrievedSource[]
+  deckExports      DeckExport[]
 
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
@@ -318,6 +319,22 @@ model DeckSlide {
   keyPoint  String  @db.Text
   slideType String? // Agent 5 Pitch Builder slide type
   factRefs  Json? // FactRef[] — upstream origin of each factual claim + carried source URLs
+}
+
+// Rendered deck artifacts (Agent 5 deck → PPT/PDF/DOCX). Deterministic
+// renders of DeckData.slides; persisted so the frontend can offer downloads.
+model DeckExport {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  format    String // pdf | pptx | docx
+  key       String // R2 storage key
+  url       String // public/download URL
+  fileName  String
+  byteSize  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@unique([projectId, format])
 }
 
 model ReviewNote {

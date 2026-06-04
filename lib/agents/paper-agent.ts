@@ -201,7 +201,7 @@ export async function runPaperAgent(
 			{ text: PAPER_AGENT_PROMPT },
 			...(revisionContext ? [{ text: revisionContext }] : []),
 		],
-		{ responseSchema: PAPER_AGENT_RESPONSE_SCHEMA }
+		{ responseSchema: PAPER_AGENT_RESPONSE_SCHEMA, agentKey: 'paper-reader' }
 	)
 
 	const text = result.response.text()

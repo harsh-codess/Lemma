@@ -222,7 +222,7 @@ export async function runPitchBuilder(
 						}]
 					: []),
 			],
-			{ responseSchema: PITCH_RESPONSE_SCHEMA }
+			{ responseSchema: PITCH_RESPONSE_SCHEMA, agentKey: 'pitch-builder' }
 		)
 
 		const text = result.response.text()

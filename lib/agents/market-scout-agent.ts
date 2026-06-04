@@ -202,7 +202,7 @@ export async function runMarketSynthesis(
 						}]
 					: []),
 			],
-			{ responseSchema: MARKET_SCOUT_RESPONSE_SCHEMA }
+			{ responseSchema: MARKET_SCOUT_RESPONSE_SCHEMA, agentKey: 'market-synthesis' }
 		)
 
 		const text = result.response.text()

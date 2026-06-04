@@ -105,7 +105,7 @@ export async function runPaperCritique(
 				text: `── AGENT 1 OUTPUT TO AUDIT ──────────────────────────────────────────\n\n${JSON.stringify(paperAnalysis, null, 2)}`,
 			},
 		],
-		{ responseSchema: CRITIQUE_RESPONSE_SCHEMA }
+		{ responseSchema: CRITIQUE_RESPONSE_SCHEMA, agentKey: 'critique' }
 	)
 
 	const text = result.response.text()
@@ -203,7 +203,7 @@ export async function runFeasibilityCritique(
 				text: `── AGENT 4 OUTPUT TO AUDIT ─────────────────────────────────────────\n\n${JSON.stringify(feasibility, null, 2)}`,
 			},
 		],
-		{ responseSchema: CRITIQUE_RESPONSE_SCHEMA }
+		{ responseSchema: CRITIQUE_RESPONSE_SCHEMA, agentKey: 'critique' }
 	)
 
 	const text = result.response.text()
@@ -333,7 +333,7 @@ export async function runPitchCritique(
 			{ text: `── UPSTREAM FACTS (the ONLY legitimate basis for any claim) ─────────\n\n${factsBlock}` },
 			{ text: `── DECK TO AUDIT ───────────────────────────────────────────────────\n\n${JSON.stringify(deck, null, 2)}` },
 		],
-		{ responseSchema: CRITIQUE_RESPONSE_SCHEMA }
+		{ responseSchema: CRITIQUE_RESPONSE_SCHEMA, agentKey: 'critique' }
 	)
 
 	const text = result.response.text()

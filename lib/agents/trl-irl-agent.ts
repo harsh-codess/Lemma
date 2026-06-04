@@ -220,7 +220,7 @@ Apply the domain-specific TRL rubric for "${paperAnalysis.domain}" and provide y
 			{ text: TRL_IRL_AGENT_PROMPT },
 			{ text: contextPayload },
 		],
-		{ responseSchema: TRL_IRL_AGENT_RESPONSE_SCHEMA }
+		{ responseSchema: TRL_IRL_AGENT_RESPONSE_SCHEMA, agentKey: 'trl-irl' }
 	)
 
 	const text = result.response.text()

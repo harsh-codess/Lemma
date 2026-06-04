@@ -134,7 +134,7 @@ export async function runFeasibilityAgent(
 			{ text: buildFeasibilityContext(paperAnalysis, trlIrlAnalysis, marketAnalysis) },
 			...(revisionContext ? [{ text: revisionContext }] : []),
 		],
-		{ responseSchema: FEASIBILITY_RESPONSE_SCHEMA }
+		{ responseSchema: FEASIBILITY_RESPONSE_SCHEMA, agentKey: 'feasibility' }
 	)
 
 	const text = result.response.text()
