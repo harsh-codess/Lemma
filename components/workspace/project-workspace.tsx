@@ -579,6 +579,140 @@ const MarketUnavailable = () => (
 	</div>
 )
 
+// ─── Deck export ─────────────────────────────────────────────────────────────
+
+type ExportFormat = 'pdf' | 'pptx' | 'docx'
+type ExportItem = { format: ExportFormat; url: string; fileName: string; byteSize: number }
+
+const EXPORT_FORMAT_ORDER: ExportFormat[] = ['pdf', 'pptx', 'docx']
+const EXPORT_FORMAT_LABELS: Record<ExportFormat, string> = {
+	pdf: 'PDF',
+	pptx: 'PowerPoint',
+	docx: 'Word',
+}
+
+const formatBytes = (bytes: number) =>
+	bytes >= 1_048_576
+		? `${(bytes / 1_048_576).toFixed(1)} MB`
+		: `${Math.max(1, Math.round(bytes / 1024))} KB`
+
+// Wires POST /api/projects/[id]/export. On mount it loads any already-rendered
+// exports (cached DeckExport rows) via GET, so a repeat visit links straight to
+// R2 without re-rendering; the button POSTs to (re)generate the three formats.
+const DeckExport = ({ projectId }: { projectId: string }) => {
+	const [exports, setExports] = useState<ExportItem[]>([])
+	const [isGenerating, setIsGenerating] = useState(false)
+	const [error, setError] = useState<string | null>(null)
+
+	useEffect(() => {
+		let active = true
+		fetch(`/api/projects/${projectId}/export`)
+			.then((res) => (res.ok ? res.json() : { exports: [] }))
+			.then((data) => {
+				if (active && Array.isArray(data.exports)) setExports(data.exports)
+			})
+			.catch(() => {
+				/* existing-exports lookup is best-effort; the button still works */
+			})
+		return () => {
+			active = false
+		}
+	}, [projectId])
+
+	const generate = useCallback(async () => {
+		setIsGenerating(true)
+		setError(null)
+		try {
+			const res = await fetch(`/api/projects/${projectId}/export`, { method: 'POST' })
+			const data = await res.json().catch(() => ({}))
+			if (!res.ok) throw new Error(data?.error ?? 'Export failed')
+			setExports(Array.isArray(data.exports) ? data.exports : [])
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Export failed')
+		} finally {
+			setIsGenerating(false)
+		}
+	}, [projectId])
+
+	const ordered = [...exports].sort(
+		(a, b) => EXPORT_FORMAT_ORDER.indexOf(a.format) - EXPORT_FORMAT_ORDER.indexOf(b.format),
+	)
+
+	return (
+		<SurfaceCard
+			title='Export deck'
+			description='Download the grounded pitch deck as PDF, PowerPoint, or Word.'>
+			{ordered.length > 0 ? (
+				<div className='space-y-4'>
+					<div className='flex flex-wrap gap-3'>
+						{ordered.map((item) => (
+							<a
+								key={item.format}
+								href={item.url}
+								target='_blank'
+								rel='noreferrer'
+								download={item.fileName}
+								className='inline-flex items-center gap-3 rounded-2xl bg-black/25 px-4 py-3 transition-colors hover:bg-black/40'>
+								<span className='flex h-9 w-9 items-center justify-center rounded-xl bg-[#7281ff]/10 text-[#9aa6ff]'>
+									<Download className='h-4 w-4' />
+								</span>
+								<span className='min-w-0'>
+									<span className='block text-sm font-medium text-white/85'>
+										{EXPORT_FORMAT_LABELS[item.format]}
+									</span>
+									<span className='block text-[0.68rem] text-white/40'>
+										{formatBytes(item.byteSize)}
+									</span>
+								</span>
+							</a>
+						))}
+					</div>
+					<button
+						type='button'
+						onClick={generate}
+						disabled={isGenerating}
+						className='inline-flex items-center gap-2 text-xs font-medium text-white/45 transition-colors hover:text-white/70 disabled:opacity-50'>
+						{isGenerating ? (
+							<Loader2 className='h-3.5 w-3.5 animate-spin' />
+						) : (
+							<RefreshCw className='h-3.5 w-3.5' />
+						)}
+						{isGenerating ? 'Regenerating…' : 'Regenerate files'}
+					</button>
+					{error && <p className='text-xs text-red-400'>{error}</p>}
+				</div>
+			) : (
+				<div className='space-y-3'>
+					<Button
+						type='button'
+						onClick={generate}
+						disabled={isGenerating}
+						className='h-11 rounded-full bg-[#e7c35a] px-5 text-sm font-semibold text-black hover:bg-[#f0d375] disabled:opacity-60'>
+						{isGenerating ? (
+							<Loader2 className='mr-2 h-4 w-4 animate-spin' />
+						) : (
+							<Download className='mr-2 h-4 w-4' />
+						)}
+						{isGenerating ? 'Generating files…' : 'Generate downloads'}
+					</Button>
+					{error && (
+						<div className='flex items-center gap-3 rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3'>
+							<AlertTriangle className='h-4 w-4 shrink-0 text-red-400' />
+							<p className='flex-1 text-xs text-red-400/80'>{error}</p>
+							<button
+								type='button'
+								onClick={generate}
+								className='text-xs font-semibold text-red-200 transition-colors hover:text-white'>
+								Retry
+							</button>
+						</div>
+					)}
+				</div>
+			)}
+		</SurfaceCard>
+	)
+}
+
 // ─── Main component ──────────────────────────────────────────────────────────
 
 const ProjectWorkspace = ({ projectId }: { projectId: string }) => {
@@ -1292,7 +1426,10 @@ const ProjectWorkspace = ({ projectId }: { projectId: string }) => {
 
 	// ── Review ────────────────────────────────────────────────────────
 	const renderReviewSummary = () => {
-		if (!project.review) {
+		const deckReady = Boolean(project.deck) || project.deckSlides.length > 0
+
+		// Nothing to show yet — no review data and no deck to export.
+		if (!project.review && !deckReady) {
 			return project.analysisStatus === 'PROCESSING' ? (
 				<StagePendingState label='Review preparation is running' />
 			) : (
@@ -1300,40 +1437,48 @@ const ProjectWorkspace = ({ projectId }: { projectId: string }) => {
 			)
 		}
 
-		const { review } = project
+		const review = project.review
 
 		return (
 			<div className='space-y-5'>
-				<div className='grid gap-4 md:grid-cols-2'>
-					<div className='rounded-[28px] bg-black/25 p-5'>
-						<p className='text-[0.68rem] uppercase tracking-[0.22em] text-white/35'>
-							Review status
-						</p>
-						<p className='mt-3 text-lg font-semibold text-white'>{review.status}</p>
-					</div>
-					<div className='rounded-[28px] bg-black/25 p-5'>
-						<p className='text-[0.68rem] uppercase tracking-[0.22em] text-white/35'>
-							Export readiness
-						</p>
-						<p className='mt-3 text-lg font-semibold text-white'>{review.exportReadiness}</p>
-					</div>
-				</div>
+				{deckReady && <DeckExport projectId={project.id} />}
 
-				{review.approvalChecklist.length > 0 && (
-					<SurfaceCard
-						title='Approval checklist'
-						description='What committee review needs before export.'>
-						<ul className='space-y-3'>
-							{review.approvalChecklist.map((item, i) => (
-								<li
-									key={i}
-									className='flex items-start gap-3 rounded-2xl bg-black/25 px-4 py-4 text-sm leading-7 text-white/70'>
-									<CheckCircle2 className='mt-1 h-4 w-4 shrink-0 text-[#68cc58]' />
-									<span>{item}</span>
-								</li>
-							))}
-						</ul>
-					</SurfaceCard>
+				{review && (
+					<>
+						<div className='grid gap-4 md:grid-cols-2'>
+							<div className='rounded-[28px] bg-black/25 p-5'>
+								<p className='text-[0.68rem] uppercase tracking-[0.22em] text-white/35'>
+									Review status
+								</p>
+								<p className='mt-3 text-lg font-semibold text-white'>{review.status}</p>
+							</div>
+							<div className='rounded-[28px] bg-black/25 p-5'>
+								<p className='text-[0.68rem] uppercase tracking-[0.22em] text-white/35'>
+									Export readiness
+								</p>
+								<p className='mt-3 text-lg font-semibold text-white'>
+									{review.exportReadiness}
+								</p>
+							</div>
+						</div>
+
+						{review.approvalChecklist.length > 0 && (
+							<SurfaceCard
+								title='Approval checklist'
+								description='What committee review needs before export.'>
+								<ul className='space-y-3'>
+									{review.approvalChecklist.map((item, i) => (
+										<li
+											key={i}
+											className='flex items-start gap-3 rounded-2xl bg-black/25 px-4 py-4 text-sm leading-7 text-white/70'>
+											<CheckCircle2 className='mt-1 h-4 w-4 shrink-0 text-[#68cc58]' />
+											<span>{item}</span>
+										</li>
+									))}
+								</ul>
+							</SurfaceCard>
+						)}
+					</>
 				)}
 			</div>
 		)
