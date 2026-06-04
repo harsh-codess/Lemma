@@ -42,6 +42,21 @@ export interface ClaimConfidenceItem {
 	reasoning: string
 }
 
+// ─── Critique: Skeptical Review of Agent 1 ───────────────────────────────────
+
+export interface PaperCritiqueIssue {
+	field: string // which Agent 1 field is challenged, e.g. "keyClaims[1]"
+	quote: string // exact text from Agent 1's output being challenged
+	issue: string // what the paper actually says (or fails to say)
+	severity: 'CRITICAL' | 'MINOR'
+}
+
+export interface PaperCritiqueOutput {
+	verdict: 'PASS' | 'NEEDS_REVISION' // NEEDS_REVISION ⇢ ≥1 CRITICAL issue
+	issues: PaperCritiqueIssue[]
+	summary: string
+}
+
 // ─── Agent 2: TRL / IRL Scoring ──────────────────────────────────────────────
 
 export interface TrlIrlAgentInput {
@@ -65,7 +80,60 @@ export interface TrlIrlAgentOutput {
 	domainRubricApplied: string // which domain-specific TRL rubric was used
 }
 
-// ─── Agent 3: Market Intelligence ────────────────────────────────────────────
+// ─── Agent 3: Market Scout ───────────────────────────────────────────────────
+//
+// Two-stage agent. Stage 1 (retrieval) gathers web sources via the search
+// client; Stage 2 (synthesis) writes a brief grounded ONLY in those sources.
+// Every figure and competitor claim carries a sourceUrl that MUST be one of
+// the retrieved URLs — enforced by the validator, not by prompt instruction.
+
+export type MarketSearchCategory = 'competitors' | 'funding' | 'patents' | 'market-size'
+
+/** A raw Stage-1 retrieval result, persisted to the RetrievedSource table */
+export interface MarketSource {
+	category: MarketSearchCategory
+	query: string // the search query that produced this hit
+	title: string
+	url: string
+	snippet: string
+	publishedDate: string | null
+}
+
+/** A market figure that cannot exist without a retrieved source behind it */
+export interface SourcedFigure {
+	value: string // e.g. "$4.2B by 2030"
+	basis: string // what the figure measures and how it applies to this technology
+	sourceUrl: string // must be one of the Stage-1 retrieved URLs
+	sourceTitle: string
+}
+
+export interface MarketScoutCompetitor {
+	name: string
+	positioning: string
+	stage: string
+	signal: string
+	sourceUrl: string // must be one of the Stage-1 retrieved URLs
+}
+
+export interface MarketScoutSignal {
+	title: string
+	type: 'Funding' | 'Patent' | 'Demand' | 'Policy'
+	impact: 'High' | 'Medium' | 'Watch'
+	summary: string
+	sourceUrl: string // must be one of the Stage-1 retrieved URLs
+}
+
+export interface MarketScoutOutput {
+	// null = no retrieved source supports a figure ("no source, no claim")
+	tam: SourcedFigure | null
+	sam: SourcedFigure | null
+	som: SourcedFigure | null
+	summary: string
+	competitors: MarketScoutCompetitor[]
+	signals: MarketScoutSignal[]
+}
+
+// ─── Agent 3 (legacy shape): Market Intelligence ─────────────────────────────
 
 export interface MarketAgentInput {
 	paperAnalysis: PaperAgentOutput
@@ -96,7 +164,49 @@ export interface MarketSignalItem {
 	summary: string
 }
 
-// ─── Agent 4: Feasibility Assessment ─────────────────────────────────────────
+// ─── Agent 4: Feasibility (reasoning agent) ──────────────────────────────────
+//
+// Reasons from Agent 1 (post-critique) + Agent 2 outputs; Market Scout output
+// is optional context. No retrieval, no source URLs — the accuracy mechanism
+// is traceability-to-inputs plus explicit uncertainty. Ranges + confidence +
+// reasoning are REQUIRED so a bare point estimate cannot be emitted.
+
+export type FeasibilityConfidence = 'high' | 'medium' | 'low'
+
+export interface FeasibilityRole {
+	role: string // e.g. "Lead ML Engineer"
+	domainExpertise: string // e.g. "PhD-level quantum hardware"
+	seniority: string // e.g. "Senior / 8+ years"
+	rationale: string // must reference what in the paper/TRL drove this need
+}
+
+export interface TimelineRange {
+	minMonths: number
+	maxMonths: number // strictly > minMonths — never a single number
+	confidence: FeasibilityConfidence
+	reasoning: string
+}
+
+export interface CapitalRange {
+	minINR: number
+	maxINR: number // strictly > minINR — never a single number
+	confidence: FeasibilityConfidence
+	reasoning: string // must explain what makes the estimate uncertain
+	majorCostDrivers: string[]
+}
+
+export interface FeasibilityScoutOutput {
+	teamMatrix: FeasibilityRole[]
+	estimatedTimeline: TimelineRange
+	capitalEstimate: CapitalRange
+	keyRisks: string[] // technical/execution risks derived from the TRL gap
+	overallConfidence: {
+		level: FeasibilityConfidence // top-level honesty signal
+		reasoning: string
+	}
+}
+
+// ─── Agent 4 (legacy shape): Feasibility Assessment ──────────────────────────
 
 export interface FeasibilityAgentInput {
 	paperAnalysis: PaperAgentOutput
@@ -113,7 +223,44 @@ export interface FeasibilityAgentOutput {
 	evidence: EvidenceItem[]
 }
 
-// ─── Agent 5: Deck Generation ────────────────────────────────────────────────
+// ─── Agent 5: Pitch Builder (synthesizer) ────────────────────────────────────
+//
+// Synthesizes a structured investor deck from agents 1–4. It may restate,
+// reframe, and structure upstream facts but introduce NO new fact. Every
+// factual claim on a slide carries a factRef naming its upstream origin
+// (e.g. "market.tam", "feasibility.capitalEstimate", "paper.keyClaims[2]");
+// market figures additionally carry the Market Scout sourceUrl so the deck
+// itself is citable. Narrative prose is free; claims are not.
+
+export type PitchSlideType =
+	| 'PROBLEM'
+	| 'SOLUTION'
+	| 'TECHNOLOGY'
+	| 'MARKET'
+	| 'FEASIBILITY'
+	| 'TEAM'
+	| 'READINESS'
+	| 'ASK'
+
+export interface FactRef {
+	ref: string // upstream origin, e.g. "market.tam" | "paper.keyClaims[2]"
+	sourceUrl: string // Market Scout URL for market figures; '' otherwise
+}
+
+export interface PitchSlide {
+	order: number
+	slideType: PitchSlideType
+	title: string
+	bullets: string[] // where factual claims live — each must trace via factRefs
+	narrative: string // persuasive framing; free prose, '' if none
+	factRefs: FactRef[] // empty for pure-narrative slides (vision, problem framing)
+}
+
+export interface PitchBuilderOutput {
+	slides: PitchSlide[]
+}
+
+// ─── Agent 5 (legacy shape): Deck Generation ─────────────────────────────────
 
 export interface DeckAgentInput {
 	paperAnalysis: PaperAgentOutput

@@ -1,18 +1,29 @@
 import {
 	GoogleGenerativeAI,
 	GoogleGenerativeAIFetchError,
+	type ResponseSchema,
 } from '@google/generative-ai'
 
 const GEMINI_MODEL = 'gemini-2.5-flash'
 const GEMINI_MAX_ATTEMPTS = 3
 const GEMINI_RETRY_DELAYS_MS = [1200, 3000]
 
+export interface GeminiCallOptions {
+	/**
+	 * Gemini native structured output. When set, the model is constrained
+	 * to emit JSON matching this schema — fenced (```json) or otherwise
+	 * malformed output becomes structurally impossible, so JSON.parse on
+	 * the response can never fail.
+	 */
+	responseSchema?: ResponseSchema
+}
+
 /**
  * Returns a configured Gemini model instance.
  * Lazy initialization — reads the API key at call time, not module load time.
  * This ensures dotenv has already loaded .env.local before the key is read.
  */
-export function getGeminiModel() {
+export function getGeminiModel(options?: GeminiCallOptions) {
 	const apiKey = process.env.GEMINI_API_KEY
 	if (!apiKey) throw new Error('GEMINI_API_KEY is not set')
 	const genAI = new GoogleGenerativeAI(apiKey)
@@ -21,6 +32,9 @@ export function getGeminiModel() {
 		generationConfig: {
 			responseMimeType: 'application/json',
 			temperature: 0.3,
+			...(options?.responseSchema
+				? { responseSchema: options.responseSchema }
+				: {}),
 		},
 	})
 }
@@ -57,14 +71,19 @@ function formatGeminiError(error: unknown) {
 	return 'Gemini request failed with an unknown error.'
 }
 
+type GenerateContentRequest = Parameters<
+	ReturnType<typeof getGeminiModel>['generateContent']
+>[0]
+
 async function generateContentWithRetry(
-	...args: Parameters<ReturnType<typeof getGeminiModel>['generateContent']>
+	request: GenerateContentRequest,
+	options?: GeminiCallOptions,
 ) {
 	let lastError: unknown
 
 	for (let attempt = 1; attempt <= GEMINI_MAX_ATTEMPTS; attempt += 1) {
 		try {
-			return await getGeminiModel().generateContent(...args)
+			return await getGeminiModel(options).generateContent(request)
 		} catch (error) {
 			lastError = error
 			const shouldRetry =
@@ -88,10 +107,10 @@ async function generateContentWithRetry(
 }
 
 /**
- * Backwards-compatible export — agents that call gemini.generateContent()
- * should switch to getGeminiModel().generateContent() but this proxy works too.
+ * Shared Gemini entry point with retry + native structured output.
+ * Pass `options.responseSchema` to constrain the response shape.
  */
 export const gemini = {
-	generateContent: (...args: Parameters<ReturnType<typeof getGeminiModel>['generateContent']>) =>
-		generateContentWithRetry(...args),
+	generateContent: (request: GenerateContentRequest, options?: GeminiCallOptions) =>
+		generateContentWithRetry(request, options),
 }

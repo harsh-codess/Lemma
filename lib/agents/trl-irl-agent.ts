@@ -1,4 +1,5 @@
 import { gemini } from './gemini-client'
+import { zodToGeminiSchema } from './gemini-schema'
 import { trlIrlAgentSchema } from './validators'
 import { createAgentLogger } from '../logger'
 import type { PaperAgentOutput, TrlIrlAgentOutput } from './types'
@@ -165,6 +166,10 @@ Return ONLY valid JSON. No markdown, no explanation.
 }
 `
 
+// Computed once at module load — the same Zod schema drives Gemini's
+// constrained generation AND the safeParse validation below.
+const TRL_IRL_AGENT_RESPONSE_SCHEMA = zodToGeminiSchema(trlIrlAgentSchema)
+
 export async function runTrlIrlAgent(
 	paperAnalysis: PaperAgentOutput,
 	projectId: string
@@ -210,10 +215,13 @@ Initial Readiness Estimate: ${paperAnalysis.initialReadinessEstimate}/100
 Apply the domain-specific TRL rubric for "${paperAnalysis.domain}" and provide your assessment.
 `
 
-	const result = await gemini.generateContent([
-		{ text: TRL_IRL_AGENT_PROMPT },
-		{ text: contextPayload },
-	])
+	const result = await gemini.generateContent(
+		[
+			{ text: TRL_IRL_AGENT_PROMPT },
+			{ text: contextPayload },
+		],
+		{ responseSchema: TRL_IRL_AGENT_RESPONSE_SCHEMA }
+	)
 
 	const text = result.response.text()
 	log.debug('Raw Gemini response received', { responseLength: text.length })

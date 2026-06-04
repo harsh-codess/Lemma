@@ -1,4 +1,5 @@
 import { gemini } from './gemini-client'
+import { zodToGeminiSchema } from './gemini-schema'
 import { paperAgentSchema } from './validators'
 import { createAgentLogger } from '../logger'
 import type { PaperAgentOutput } from './types'
@@ -169,24 +170,39 @@ Return ONLY valid JSON. No markdown, no explanation.
 }
 `
 
+// Computed once at module load — the same Zod schema drives Gemini's
+// constrained generation AND the safeParse validation below.
+const PAPER_AGENT_RESPONSE_SCHEMA = zodToGeminiSchema(paperAgentSchema)
+
+/**
+ * @param revisionContext Optional critique findings from the skeptical
+ *        reviewer. When set, this is a one-shot regeneration: the prompt is
+ *        identical except the critique is appended as additional context.
+ */
 export async function runPaperAgent(
 	pdfBase64: string,
-	projectId: string
+	projectId: string,
+	revisionContext?: string
 ): Promise<PaperAgentOutput> {
 	const log = createAgentLogger('Paper Analysis', 1, projectId)
 	const startTime = Date.now()
 
 	log.start()
+	if (revisionContext) log.info('Regenerating with critique context')
 
-	const result = await gemini.generateContent([
-		{
-			inlineData: {
-				data: pdfBase64,
-				mimeType: 'application/pdf',
+	const result = await gemini.generateContent(
+		[
+			{
+				inlineData: {
+					data: pdfBase64,
+					mimeType: 'application/pdf',
+				},
 			},
-		},
-		{ text: PAPER_AGENT_PROMPT },
-	])
+			{ text: PAPER_AGENT_PROMPT },
+			...(revisionContext ? [{ text: revisionContext }] : []),
+		],
+		{ responseSchema: PAPER_AGENT_RESPONSE_SCHEMA }
+	)
 
 	const text = result.response.text()
 	log.debug('Raw Gemini response received', { responseLength: text.length })

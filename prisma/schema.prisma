@@ -139,13 +139,14 @@ model Project {
   review         ReviewData?
 
   // Collections
-  stages         ProjectStage[]
-  evidence       Evidence[]
-  reviewNotes    ReviewNote[]
-  competitors    Competitor[]
-  marketSignals  MarketSignal[]
-  deckSlides     DeckSlide[]
-  copilotPrompts CopilotPrompt[]
+  stages           ProjectStage[]
+  evidence         Evidence[]
+  reviewNotes      ReviewNote[]
+  competitors      Competitor[]
+  marketSignals    MarketSignal[]
+  deckSlides       DeckSlide[]
+  copilotPrompts   CopilotPrompt[]
+  retrievedSources RetrievedSource[]
 
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
@@ -207,6 +208,10 @@ model MarketData {
   sam       String
   som       String
   summary   String  @db.Text
+  // Grounding (Agent 3 Market Scout) — URL of the retrieved source backing each figure
+  tamSourceUrl String?
+  samSourceUrl String?
+  somSourceUrl String?
 }
 
 model FeasibilityData {
@@ -218,6 +223,13 @@ model FeasibilityData {
   capitalEstimate  String
   grantFit         String
   keyRisks         String[]
+  // Structured detail (Agent 4 Feasibility) — ranges with confidence + reasoning;
+  // the legacy string columns above hold display-formatted derivations of these.
+  teamMatrix           Json? // FeasibilityRole[]
+  timelineDetail       Json? // TimelineRange
+  capitalDetail        Json? // CapitalRange
+  overallConfidence    String? // high | medium | low
+  confidenceReasoning  String? @db.Text
 }
 
 model DeckData {
@@ -226,6 +238,11 @@ model DeckData {
   project            Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   fundingAsk         String
   keyNarrativePoints String[]
+  // Structured deck content (Agent 5 Pitch Builder) — ordered slides with
+  // factRefs (each factual claim's upstream origin + carried market source
+  // URLs). Source of truth; legacy fundingAsk/keyNarrativePoints + DeckSlide
+  // rows are display-formatted derivations of this.
+  slides             Json?
 }
 
 model ReviewData {
@@ -260,6 +277,7 @@ model Competitor {
   positioning  String  @db.Text
   stage        String
   signal       String  @db.Text
+  sourceUrl    String? // retrieved source backing this competitor claim (Agent 3)
 }
 
 model MarketSignal {
@@ -270,6 +288,25 @@ model MarketSignal {
   type      SignalType
   impact    ConfidenceLevel
   summary   String          @db.Text
+  sourceUrl String? // retrieved source backing this signal (Agent 3)
+}
+
+// Raw Stage-1 retrieval results from the Market Scout (Agent 3) — the set of
+// sources the synthesis stage is allowed to cite. Persisted for auditability.
+model RetrievedSource {
+  id            String   @id @default(cuid())
+  projectId     String
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  stageKey      StageKey @default(MARKET)
+  category      String // competitors | funding | patents | market-size
+  query         String // the search query that produced this hit
+  title         String
+  url           String
+  snippet       String   @db.Text
+  publishedDate String?
+  createdAt     DateTime @default(now())
+
+  @@index([projectId, stageKey])
 }
 
 model DeckSlide {
@@ -279,6 +316,8 @@ model DeckSlide {
   order     Int
   title     String
   keyPoint  String  @db.Text
+  slideType String? // Agent 5 Pitch Builder slide type
+  factRefs  Json? // FactRef[] — upstream origin of each factual claim + carried source URLs
 }
 
 model ReviewNote {
