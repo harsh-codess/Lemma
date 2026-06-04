@@ -7,6 +7,8 @@ import {
 	CheckCircle2,
 	ChevronRight,
 	ClipboardCheck,
+	Download,
+	ExternalLink,
 	FileBarChart2,
 	FileText,
 	FolderSearch2,
@@ -29,6 +31,9 @@ import {
 	DialogTitle,
 } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
+// Pure string helper from the deck render layer — reused so on-screen capital
+// figures match the exported deck exactly (raw rupees → crores).
+import { formatCurrencyInText } from '@/lib/deck-render/currency'
 
 // ─── Types matching the real API response ────────────────────────────────────
 
@@ -73,13 +78,34 @@ type ApiProject = {
 		timeToMarket: string | null
 		domainRubricApplied: string | null
 	} | null
-	market: { tam: string; sam: string; som: string; summary: string } | null
+	market: {
+		tam: string
+		sam: string
+		som: string
+		summary: string
+		tamSourceUrl: string | null
+		samSourceUrl: string | null
+		somSourceUrl: string | null
+	} | null
 	feasibility: {
 		teamRequirements: string[]
 		timeline: string
 		capitalEstimate: string
 		grantFit: string
 		keyRisks: string[]
+		// Structured detail (Agent 4) — present on newer runs; fall back to the
+		// string fields above when null.
+		teamMatrix:
+			| Array<{ role: string; domainExpertise: string; seniority: string; rationale: string }>
+			| null
+		timelineDetail:
+			| { minMonths: number; maxMonths: number; confidence: string; reasoning: string }
+			| null
+		capitalDetail:
+			| { minINR: number; maxINR: number; confidence: string; reasoning: string; majorCostDrivers: string[] }
+			| null
+		overallConfidence: string | null
+		confidenceReasoning: string | null
 	} | null
 	deck: { fundingAsk: string; keyNarrativePoints: string[] } | null
 	review: { status: string; exportReadiness: string; approvalChecklist: string[] } | null
@@ -98,6 +124,7 @@ type ApiProject = {
 		positioning: string
 		stage: string
 		signal: string
+		sourceUrl: string | null
 	}>
 	marketSignals: Array<{
 		id: string
@@ -105,8 +132,16 @@ type ApiProject = {
 		type: string
 		impact: string
 		summary: string
+		sourceUrl: string | null
 	}>
-	deckSlides: Array<{ id: string; order: number; title: string; keyPoint: string }>
+	deckSlides: Array<{
+		id: string
+		order: number
+		title: string
+		keyPoint: string
+		slideType: string | null
+		factRefs: Array<{ ref: string; sourceUrl: string }> | null
+	}>
 	reviewNotes: Array<{
 		id: string
 		stageKey: StageKey | null
@@ -148,6 +183,48 @@ const stageAccentClasses: Record<StageKey, string> = {
 	FEASIBILITY: 'text-emerald-200 bg-emerald-400/10',
 	DECK: 'text-fuchsia-200 bg-fuchsia-400/10',
 	REVIEW: 'text-white/75 bg-white/[0.06]',
+}
+
+// Human-readable label per stage for the analysis progress stepper.
+const stageStepLabels: Record<StageKey, string> = {
+	PAPER: 'Paper Analysis',
+	TRL_IRL: 'TRL / IRL Scoring',
+	MARKET: 'Market Intelligence',
+	FEASIBILITY: 'Feasibility',
+	DECK: 'Pitch Deck',
+	REVIEW: 'Review',
+}
+
+// A skipped stage (enrichment, not failure) renders muted with this label.
+const stageUnavailableLabels: Partial<Record<StageKey, string>> = {
+	MARKET: 'Market analysis — unavailable',
+}
+
+type StepState = 'done' | 'active' | 'skipped' | 'pending'
+
+// Derives each stage's visual state from the ProjectStage rows (status:
+// COMPLETE | CURRENT | UPCOMING). A non-complete stage that sits BEFORE the
+// pipeline's furthest progress was skipped — e.g. Market Scout is enrichment
+// and can be skipped without failing the run — and is shown distinctly from
+// the genuinely active stage and from still-pending stages.
+const deriveStageSteps = (
+	stages: ApiProject['stages'],
+): Array<{ key: StageKey; state: StepState }> => {
+	const statusByKey = new Map(stages.map((stage) => [stage.key, stage.status]))
+	let frontier = -1
+	stageOrder.forEach((key, index) => {
+		const status = statusByKey.get(key)
+		if (status === 'COMPLETE' || status === 'CURRENT') frontier = index
+	})
+	return stageOrder.map((key, index) => {
+		const status = statusByKey.get(key) ?? 'UPCOMING'
+		let state: StepState
+		if (status === 'COMPLETE') state = 'done'
+		else if (index < frontier) state = 'skipped'
+		else if (status === 'CURRENT') state = 'active'
+		else state = 'pending'
+		return { key, state }
+	})
 }
 
 const formatDate = (value: string) => {
@@ -208,11 +285,14 @@ const AnalysisProgress = ({
 	onRetry: () => void
 	isRetrying: boolean
 }) => {
-	const step = project.paper ? (project.trlIrl ? 2 : 1) : 0
-	const totalAgents = 2
 	const isActive = project.analysisStatus === 'PROCESSING'
 
-	if (!isActive && project.analysisStatus !== 'FAILED') return null
+	if (
+		!isActive &&
+		project.analysisStatus !== 'FAILED' &&
+		project.analysisStatus !== 'COMPLETE'
+	)
+		return null
 
 	if (project.analysisStatus === 'FAILED') {
 		return (
@@ -243,35 +323,81 @@ const AnalysisProgress = ({
 		)
 	}
 
-	const agentNames = ['Paper Analysis', 'TRL / IRL Scoring']
-	const currentAgent = Math.min(step, totalAgents - 1)
+	// No stage rows yet (e.g. project created but not analyzed) — nothing to show.
+	if (project.stages.length === 0) return null
+
+	const steps = deriveStageSteps(project.stages)
+	const activeStep = steps.find((stepState) => stepState.state === 'active')
+	const headerLabel = isActive
+		? activeStep
+			? `${stageStepLabels[activeStep.key]}…`
+			: 'Finalizing analysis…'
+		: 'Analysis complete'
 
 	return (
-		<div className='flex items-center gap-4 rounded-[28px] bg-[#e7c35a]/5 p-5'>
-			<div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#e7c35a]/10'>
-				<Loader2 className='h-5 w-5 animate-spin text-[#e7c35a]' />
-			</div>
-			<div className='flex-1'>
-				<p className='text-sm font-medium text-[#e7c35a]'>
-					Agent {currentAgent + 1}: {agentNames[currentAgent]}...
-				</p>
-				<div className='mt-2 flex gap-1'>
-					{agentNames.map((_, i) => (
-						<div
-							key={i}
-							className='h-1 flex-1 rounded-full transition-colors duration-500'
-							style={{
-								backgroundColor:
-									i < step
-										? 'rgba(231, 195, 90, 0.6)'
-										: i === step
-											? 'rgba(231, 195, 90, 0.3)'
-											: 'rgba(255, 255, 255, 0.06)',
-							}}
-						/>
-					))}
+		<div className='rounded-[28px] bg-white/[0.03] p-5'>
+			<div className='flex items-center gap-3'>
+				<div
+					className={cn(
+						'flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl',
+						isActive ? 'bg-[#e7c35a]/10' : 'bg-emerald-400/10',
+					)}>
+					{isActive ? (
+						<Loader2 className='h-4 w-4 animate-spin text-[#e7c35a]' />
+					) : (
+						<CheckCircle2 className='h-4 w-4 text-emerald-400' />
+					)}
 				</div>
+				<p
+					className={cn(
+						'text-sm font-medium',
+						isActive ? 'text-[#e7c35a]' : 'text-white/80',
+					)}>
+					{headerLabel}
+				</p>
 			</div>
+			<ol className='mt-4 grid grid-cols-3 gap-x-3 gap-y-4 sm:grid-cols-6'>
+				{steps.map((stepState) => {
+					const isSkipped = stepState.state === 'skipped'
+					const label = isSkipped
+						? stageUnavailableLabels[stepState.key] ??
+							`${stageStepLabels[stepState.key]} — skipped`
+						: stageStepLabels[stepState.key]
+					return (
+						<li key={stepState.key} className='min-w-0'>
+							<div
+								className={cn(
+									'h-1.5 rounded-full',
+									isSkipped && 'border border-dashed border-white/20',
+								)}
+								style={{
+									backgroundColor: isSkipped
+										? 'transparent'
+										: stepState.state === 'done'
+											? 'rgba(74, 222, 128, 0.65)'
+											: stepState.state === 'active'
+												? 'rgba(231, 195, 90, 0.85)'
+												: 'rgba(255, 255, 255, 0.06)',
+								}}
+							/>
+							<p
+								className={cn(
+									'mt-2 truncate text-[0.7rem] leading-4',
+									stepState.state === 'done' && 'text-white/70',
+									stepState.state === 'active' && 'font-medium text-[#e7c35a]',
+									stepState.state === 'skipped' && 'text-white/35',
+									stepState.state === 'pending' && 'text-white/30',
+								)}
+								title={label}>
+								{stepState.state === 'active' && isActive && (
+									<span className='mr-1.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[#e7c35a] align-middle' />
+								)}
+								{label}
+							</p>
+						</li>
+					)
+				})}
+			</ol>
 		</div>
 	)
 }
@@ -404,6 +530,52 @@ const ComingSoon = ({ label }: { label: string }) => (
 		<p className='mt-2 max-w-md text-sm leading-6 text-white/45'>
 			This agent is being built. Results for this stage will appear here once the pipeline is extended.
 		</p>
+	</div>
+)
+
+const sourceDomain = (url: string) => {
+	try {
+		return new URL(url).hostname.replace(/^www\./, '')
+	} catch {
+		return url.replace(/^https?:\/\//, '').split('/')[0]
+	}
+}
+
+// Visible grounding: a small external-link chip showing the source domain.
+const SourceLink = ({ url }: { url: string }) => (
+	<a
+		href={url}
+		target='_blank'
+		rel='noreferrer'
+		className='inline-flex items-center gap-1.5 text-[0.7rem] font-medium text-[#7281ff] transition-colors hover:text-white'>
+		<ExternalLink className='h-3 w-3' />
+		{sourceDomain(url)}
+	</a>
+)
+
+// Confidence / impact chip tone (high·medium·low / High·Medium·Watch).
+const confidenceTone = (level: string) => {
+	const l = level.toLowerCase()
+	if (l === 'high') return 'bg-emerald-400/10 text-emerald-300'
+	if (l === 'medium') return 'bg-amber-400/10 text-amber-300'
+	if (l === 'low' || l === 'watch') return 'bg-red-400/10 text-red-300'
+	return 'bg-white/[0.06] text-white/60'
+}
+
+// Market was skipped (enrichment, not failure) — distinct from ComingSoon.
+const MarketUnavailable = () => (
+	<div className='flex items-start gap-4 rounded-[28px] border border-white/10 bg-white/[0.02] p-6'>
+		<div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/[0.05]'>
+			<FolderSearch2 className='h-5 w-5 text-white/40' />
+		</div>
+		<div className='min-w-0'>
+			<p className='text-sm font-medium text-white/75'>
+				Market analysis unavailable — insufficient grounded sources
+			</p>
+			<p className='mt-1.5 text-xs leading-5 text-white/45'>
+				The market stage was skipped rather than report figures without a verifiable source. Other stages are unaffected.
+			</p>
+		</div>
 	</div>
 )
 
@@ -809,6 +981,364 @@ const ProjectWorkspace = ({ projectId }: { projectId: string }) => {
 		)
 	}
 
+	// ── Market ────────────────────────────────────────────────────────
+	const renderMarketSummary = () => {
+		if (!project.market) {
+			return project.analysisStatus === 'PROCESSING' ? (
+				<StagePendingState label='Market intelligence is running' />
+			) : (
+				<MarketUnavailable />
+			)
+		}
+
+		const { market, competitors, marketSignals } = project
+		const figures = [
+			{ label: 'TAM', value: market.tam, src: market.tamSourceUrl },
+			{ label: 'SAM', value: market.sam, src: market.samSourceUrl },
+			{ label: 'SOM', value: market.som, src: market.somSourceUrl },
+		]
+
+		return (
+			<div className='space-y-5'>
+				<div className='grid gap-4 md:grid-cols-3'>
+					{figures.map((item) => (
+						<div key={item.label} className='rounded-[28px] bg-black/25 p-5'>
+							<p className='text-[0.68rem] uppercase tracking-[0.22em] text-white/35'>
+								{item.label}
+							</p>
+							<p className='mt-3 text-2xl font-semibold text-white'>{item.value}</p>
+							{item.src && (
+								<div className='mt-3 border-t border-white/[0.06] pt-3'>
+									<SourceLink url={item.src} />
+								</div>
+							)}
+						</div>
+					))}
+				</div>
+
+				<SurfaceCard title='Market summary'>
+					<p className='max-w-4xl text-sm leading-7 text-white/72'>{market.summary}</p>
+				</SurfaceCard>
+
+				{competitors.length > 0 && (
+					<SurfaceCard
+						title='Competitive landscape'
+						description='Companies and signals found in the retrieved sources.'>
+						<ul className='space-y-3'>
+							{competitors.map((c) => (
+								<li key={c.id} className='rounded-2xl bg-black/25 px-4 py-4'>
+									<div className='flex flex-wrap items-center justify-between gap-2'>
+										<p className='text-sm font-medium text-white/85'>{c.name}</p>
+										<span className='inline-flex rounded-full bg-white/[0.06] px-2.5 py-1 text-[0.66rem] font-medium uppercase tracking-[0.16em] text-white/55'>
+											{c.stage}
+										</span>
+									</div>
+									<p className='mt-2 text-sm leading-6 text-white/65'>{c.positioning}</p>
+									<p className='mt-1 text-sm leading-6 text-white/50'>{c.signal}</p>
+									{c.sourceUrl && (
+										<div className='mt-3'>
+											<SourceLink url={c.sourceUrl} />
+										</div>
+									)}
+								</li>
+							))}
+						</ul>
+					</SurfaceCard>
+				)}
+
+				{marketSignals.length > 0 && (
+					<SurfaceCard
+						title='Market signals'
+						description='Funding, patent, demand, and policy signals with their sources.'>
+						<ul className='space-y-3'>
+							{marketSignals.map((s) => (
+								<li key={s.id} className='rounded-2xl bg-black/25 px-4 py-4'>
+									<div className='flex flex-wrap items-center gap-2'>
+										<span className='inline-flex rounded-full bg-white/[0.06] px-2.5 py-1 text-[0.66rem] font-medium uppercase tracking-[0.16em] text-white/55'>
+											{s.type}
+										</span>
+										<span
+											className={cn(
+												'inline-flex rounded-full px-2.5 py-1 text-[0.66rem] font-medium uppercase tracking-[0.16em]',
+												confidenceTone(s.impact),
+											)}>
+											{s.impact}
+										</span>
+									</div>
+									<p className='mt-2 text-sm font-medium text-white/85'>{s.title}</p>
+									<p className='mt-1 text-sm leading-6 text-white/60'>{s.summary}</p>
+									{s.sourceUrl && (
+										<div className='mt-3'>
+											<SourceLink url={s.sourceUrl} />
+										</div>
+									)}
+								</li>
+							))}
+						</ul>
+					</SurfaceCard>
+				)}
+			</div>
+		)
+	}
+
+	// ── Feasibility ───────────────────────────────────────────────────
+	const renderFeasibilitySummary = () => {
+		if (!project.feasibility) {
+			return project.analysisStatus === 'PROCESSING' ? (
+				<StagePendingState label='Feasibility analysis is running' />
+			) : (
+				<ComingSoon label='Feasibility agent' />
+			)
+		}
+
+		const { feasibility } = project
+		const timeline = feasibility.timelineDetail
+		const capital = feasibility.capitalDetail
+		const timelineLabel = timeline
+			? `${timeline.minMonths}–${timeline.maxMonths} months · ${timeline.confidence} confidence`
+			: feasibility.timeline
+		const capitalLabel = capital
+			? `${formatCurrencyInText(`₹${capital.minINR}-${capital.maxINR}`)} · ${capital.confidence} confidence`
+			: feasibility.capitalEstimate
+
+		return (
+			<div className='space-y-5'>
+				<div className='grid gap-4 md:grid-cols-2'>
+					<div className='rounded-[28px] bg-black/25 p-5'>
+						<p className='text-[0.68rem] uppercase tracking-[0.22em] text-white/35'>Timeline</p>
+						<p className='mt-3 text-xl font-semibold text-white'>{timelineLabel}</p>
+						{timeline?.reasoning && (
+							<p className='mt-2 text-sm leading-6 text-white/55'>{timeline.reasoning}</p>
+						)}
+					</div>
+					<div className='rounded-[28px] bg-black/25 p-5'>
+						<p className='text-[0.68rem] uppercase tracking-[0.22em] text-white/35'>
+							Capital estimate
+						</p>
+						<p className='mt-3 text-xl font-semibold text-white'>{capitalLabel}</p>
+						{capital?.reasoning && (
+							<p className='mt-2 text-sm leading-6 text-white/55'>{capital.reasoning}</p>
+						)}
+					</div>
+				</div>
+
+				{feasibility.overallConfidence && (
+					<SurfaceCard title='Overall confidence'>
+						<span
+							className={cn(
+								'inline-flex rounded-full px-3 py-1 text-[0.68rem] font-medium uppercase tracking-[0.18em]',
+								confidenceTone(feasibility.overallConfidence),
+							)}>
+							{feasibility.overallConfidence} confidence
+						</span>
+						{feasibility.confidenceReasoning && (
+							<p className='mt-4 text-sm leading-7 text-white/68'>
+								{feasibility.confidenceReasoning}
+							</p>
+						)}
+					</SurfaceCard>
+				)}
+
+				{capital?.majorCostDrivers && capital.majorCostDrivers.length > 0 && (
+					<SurfaceCard title='Major cost drivers'>
+						<ul className='space-y-3'>
+							{capital.majorCostDrivers.map((driver, i) => (
+								<li
+									key={i}
+									className='flex items-start gap-3 rounded-2xl bg-black/25 px-4 py-4 text-sm leading-6 text-white/70'>
+									<TrendingUp className='mt-0.5 h-4 w-4 shrink-0 text-[#e7c35a]' />
+									<span>{driver}</span>
+								</li>
+							))}
+						</ul>
+					</SurfaceCard>
+				)}
+
+				{feasibility.teamMatrix && feasibility.teamMatrix.length > 0 ? (
+					<SurfaceCard
+						title='Team matrix'
+						description='The critical roles to execute, each traced to the analysis.'>
+						<ul className='space-y-3'>
+							{feasibility.teamMatrix.map((role, i) => (
+								<li key={i} className='rounded-2xl bg-black/25 px-4 py-4'>
+									<div className='flex flex-wrap items-center justify-between gap-2'>
+										<p className='text-sm font-medium text-white/85'>{role.role}</p>
+										<span className='inline-flex rounded-full bg-white/[0.06] px-2.5 py-1 text-[0.66rem] font-medium uppercase tracking-[0.16em] text-white/55'>
+											{role.seniority}
+										</span>
+									</div>
+									<p className='mt-1.5 text-sm font-medium text-[#f6df9d]'>
+										{role.domainExpertise}
+									</p>
+									<p className='mt-2 text-sm leading-6 text-white/55'>{role.rationale}</p>
+								</li>
+							))}
+						</ul>
+					</SurfaceCard>
+				) : (
+					feasibility.teamRequirements.length > 0 && (
+						<SurfaceCard title='Team requirements'>
+							<ul className='space-y-3'>
+								{feasibility.teamRequirements.map((req, i) => (
+									<li
+										key={i}
+										className='rounded-2xl bg-black/25 px-4 py-4 text-sm leading-6 text-white/70'>
+										{req}
+									</li>
+								))}
+							</ul>
+						</SurfaceCard>
+					)
+				)}
+
+				{feasibility.keyRisks.length > 0 && (
+					<SurfaceCard
+						title='Key risks'
+						description='Technical and execution risks derived from the TRL gap.'>
+						<ul className='space-y-3'>
+							{feasibility.keyRisks.map((risk, i) => (
+								<li
+									key={i}
+									className='flex items-start gap-3 rounded-2xl bg-[#e7c35a]/10 px-4 py-4 text-sm leading-7 text-[#f3db90]'>
+									<AlertTriangle className='mt-1 h-4 w-4 shrink-0' />
+									<span>{risk}</span>
+								</li>
+							))}
+						</ul>
+					</SurfaceCard>
+				)}
+
+				{feasibility.grantFit && (
+					<SurfaceCard title='Grant fit'>
+						<p className='text-sm leading-7 text-white/72'>{feasibility.grantFit}</p>
+					</SurfaceCard>
+				)}
+			</div>
+		)
+	}
+
+	// ── Deck ──────────────────────────────────────────────────────────
+	const renderDeckSummary = () => {
+		if (!project.deck && project.deckSlides.length === 0) {
+			return project.analysisStatus === 'PROCESSING' ? (
+				<StagePendingState label='Pitch deck is being assembled' />
+			) : (
+				<ComingSoon label='Deck generation agent' />
+			)
+		}
+
+		const { deck, deckSlides } = project
+
+		return (
+			<div className='space-y-5'>
+				{deck?.fundingAsk && (
+					<SurfaceCard title='Funding ask'>
+						<p className='max-w-4xl text-sm leading-7 text-white/72'>{deck.fundingAsk}</p>
+					</SurfaceCard>
+				)}
+
+				{deck?.keyNarrativePoints && deck.keyNarrativePoints.length > 0 && (
+					<SurfaceCard title='Narrative points'>
+						<ul className='space-y-3'>
+							{deck.keyNarrativePoints.map((point, i) => (
+								<li
+									key={i}
+									className='flex items-start gap-3 rounded-2xl bg-black/25 px-4 py-4 text-sm leading-7 text-white/70'>
+									<Sparkles className='mt-1 h-4 w-4 shrink-0 text-[#e7c35a]' />
+									<span>{point}</span>
+								</li>
+							))}
+						</ul>
+					</SurfaceCard>
+				)}
+
+				{deckSlides.length > 0 && (
+					<SurfaceCard
+						title='Deck outline'
+						description='Generated slides — each factual claim is traced to its upstream source.'>
+						<ol className='space-y-3'>
+							{deckSlides.map((slide) => {
+								const sources = (slide.factRefs ?? []).filter((f) => f.sourceUrl)
+								return (
+									<li key={slide.id} className='rounded-2xl bg-black/25 px-4 py-4'>
+										<div className='flex items-center gap-3'>
+											<span className='inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-white/[0.06] text-[0.7rem] font-semibold text-white/55'>
+												{slide.order}
+											</span>
+											{slide.slideType && (
+												<span className='inline-flex rounded-full bg-fuchsia-400/10 px-2.5 py-1 text-[0.62rem] font-medium uppercase tracking-[0.18em] text-fuchsia-200'>
+													{slide.slideType}
+												</span>
+											)}
+										</div>
+										<p className='mt-2.5 text-sm font-medium text-white/85'>{slide.title}</p>
+										<p className='mt-1 text-sm leading-6 text-white/60'>{slide.keyPoint}</p>
+										{sources.length > 0 && (
+											<div className='mt-3 flex flex-wrap gap-x-4 gap-y-1.5 border-t border-white/[0.06] pt-3'>
+												{sources.map((s, i) => (
+													<SourceLink key={i} url={s.sourceUrl} />
+												))}
+											</div>
+										)}
+									</li>
+								)
+							})}
+						</ol>
+					</SurfaceCard>
+				)}
+			</div>
+		)
+	}
+
+	// ── Review ────────────────────────────────────────────────────────
+	const renderReviewSummary = () => {
+		if (!project.review) {
+			return project.analysisStatus === 'PROCESSING' ? (
+				<StagePendingState label='Review preparation is running' />
+			) : (
+				<ComingSoon label='Review agent' />
+			)
+		}
+
+		const { review } = project
+
+		return (
+			<div className='space-y-5'>
+				<div className='grid gap-4 md:grid-cols-2'>
+					<div className='rounded-[28px] bg-black/25 p-5'>
+						<p className='text-[0.68rem] uppercase tracking-[0.22em] text-white/35'>
+							Review status
+						</p>
+						<p className='mt-3 text-lg font-semibold text-white'>{review.status}</p>
+					</div>
+					<div className='rounded-[28px] bg-black/25 p-5'>
+						<p className='text-[0.68rem] uppercase tracking-[0.22em] text-white/35'>
+							Export readiness
+						</p>
+						<p className='mt-3 text-lg font-semibold text-white'>{review.exportReadiness}</p>
+					</div>
+				</div>
+
+				{review.approvalChecklist.length > 0 && (
+					<SurfaceCard
+						title='Approval checklist'
+						description='What committee review needs before export.'>
+						<ul className='space-y-3'>
+							{review.approvalChecklist.map((item, i) => (
+								<li
+									key={i}
+									className='flex items-start gap-3 rounded-2xl bg-black/25 px-4 py-4 text-sm leading-7 text-white/70'>
+									<CheckCircle2 className='mt-1 h-4 w-4 shrink-0 text-[#68cc58]' />
+									<span>{item}</span>
+								</li>
+							))}
+						</ul>
+					</SurfaceCard>
+				)}
+			</div>
+		)
+	}
+
 	const renderSummary = () => {
 		switch (activeStage) {
 			case 'PAPER':
@@ -816,62 +1346,13 @@ const ProjectWorkspace = ({ projectId }: { projectId: string }) => {
 			case 'TRL_IRL':
 				return renderTrlIrlSummary()
 			case 'MARKET':
-				if (project.market) {
-					return (
-						<div className='space-y-5'>
-							<div className='grid gap-4 md:grid-cols-3'>
-								{[
-									{ label: 'TAM', value: project.market.tam },
-									{ label: 'SAM', value: project.market.sam },
-									{ label: 'SOM', value: project.market.som },
-								].map((item) => (
-									<div key={item.label} className='rounded-[28px] bg-black/25 p-5'>
-										<p className='text-[0.68rem] uppercase tracking-[0.22em] text-white/35'>
-											{item.label}
-										</p>
-										<p className='mt-3 text-3xl font-semibold text-white'>
-											{item.value}
-										</p>
-									</div>
-								))}
-							</div>
-							<SurfaceCard title='Market summary'>
-								<p className='max-w-4xl text-sm leading-7 text-white/72'>
-									{project.market.summary}
-								</p>
-							</SurfaceCard>
-						</div>
-					)
-				}
-				return <ComingSoon label='Market intelligence agent' />
+				return renderMarketSummary()
 			case 'FEASIBILITY':
-				if (project.feasibility) {
-					return (
-						<div className='space-y-5'>
-							<div className='grid gap-4 md:grid-cols-3'>
-								{[
-									{ label: 'Timeline', value: project.feasibility.timeline },
-									{ label: 'Capital estimate', value: project.feasibility.capitalEstimate },
-									{ label: 'Grant fit', value: project.feasibility.grantFit },
-								].map((item) => (
-									<div key={item.label} className='rounded-[28px] bg-black/25 p-5'>
-										<p className='text-[0.68rem] uppercase tracking-[0.22em] text-white/35'>
-											{item.label}
-										</p>
-										<p className='mt-3 text-sm leading-7 text-white/72'>
-											{item.value}
-										</p>
-									</div>
-								))}
-							</div>
-						</div>
-					)
-				}
-				return <ComingSoon label='Feasibility agent' />
+				return renderFeasibilitySummary()
 			case 'DECK':
-				return <ComingSoon label='Deck generation agent' />
+				return renderDeckSummary()
 			case 'REVIEW':
-				return <ComingSoon label='Review agent' />
+				return renderReviewSummary()
 		}
 	}
 
