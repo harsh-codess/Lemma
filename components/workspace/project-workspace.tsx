@@ -599,7 +599,13 @@ const formatBytes = (bytes: number) =>
 // Wires POST /api/projects/[id]/export. On mount it loads any already-rendered
 // exports (cached DeckExport rows) via GET, so a repeat visit links straight to
 // R2 without re-rendering; the button POSTs to (re)generate the three formats.
-const DeckExport = ({ projectId }: { projectId: string }) => {
+const DeckExport = ({
+	projectId,
+	onGenerated,
+}: {
+	projectId: string
+	onGenerated?: () => void
+}) => {
 	const [exports, setExports] = useState<ExportItem[]>([])
 	const [isGenerating, setIsGenerating] = useState(false)
 	const [error, setError] = useState<string | null>(null)
@@ -627,12 +633,15 @@ const DeckExport = ({ projectId }: { projectId: string }) => {
 			const data = await res.json().catch(() => ({}))
 			if (!res.ok) throw new Error(data?.error ?? 'Export failed')
 			setExports(Array.isArray(data.exports) ? data.exports : [])
+			// Generating completes the REVIEW stage server-side; refresh the
+			// project so the stepper / stage bar turns green.
+			onGenerated?.()
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Export failed')
 		} finally {
 			setIsGenerating(false)
 		}
-	}, [projectId])
+	}, [projectId, onGenerated])
 
 	const ordered = [...exports].sort(
 		(a, b) => EXPORT_FORMAT_ORDER.indexOf(a.format) - EXPORT_FORMAT_ORDER.indexOf(b.format),
@@ -644,6 +653,10 @@ const DeckExport = ({ projectId }: { projectId: string }) => {
 			description='Download the grounded pitch deck as PDF, PowerPoint, or Word.'>
 			{ordered.length > 0 ? (
 				<div className='space-y-4'>
+					<div className='inline-flex items-center gap-2 rounded-full bg-emerald-400/10 px-3 py-1.5 text-xs font-semibold text-emerald-400'>
+						<CheckCircle2 className='h-4 w-4' />
+						Files ready
+					</div>
 					<div className='flex flex-wrap gap-3'>
 						{ordered.map((item) => (
 							<a
@@ -1441,7 +1454,7 @@ const ProjectWorkspace = ({ projectId }: { projectId: string }) => {
 
 		return (
 			<div className='space-y-5'>
-				{deckReady && <DeckExport projectId={project.id} />}
+				{deckReady && <DeckExport projectId={project.id} onGenerated={fetchProject} />}
 
 				{review && (
 					<>

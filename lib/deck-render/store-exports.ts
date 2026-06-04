@@ -65,5 +65,18 @@ export async function generateAndStoreExports(
 		results.push({ format, url, key, fileName, byteSize: buffer.byteLength })
 	}
 
+	// Generating the deliverable completes the REVIEW stage — the pipeline left
+	// it CURRENT awaiting this human action, so its bar now turns green.
+	await prisma.$transaction([
+		prisma.projectStage.updateMany({
+			where: { projectId, key: 'REVIEW' },
+			data: { status: 'COMPLETE' },
+		}),
+		prisma.project.update({
+			where: { id: projectId },
+			data: { status: 'READY_FOR_EXPORT' },
+		}),
+	])
+
 	return results
 }

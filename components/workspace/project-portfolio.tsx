@@ -84,6 +84,35 @@ const statusConfig: Record<
 	},
 }
 
+const STAGE_ORDER = ['PAPER', 'TRL_IRL', 'MARKET', 'FEASIBILITY', 'DECK', 'REVIEW']
+
+type CardStageState = 'done' | 'active' | 'skipped' | 'pending'
+
+// Per-stage state for the compact pipeline track. Mirrors the workspace
+// stepper: a non-complete stage sitting before the furthest progress was
+// skipped (Market Scout is enrichment and can be skipped), shown distinctly
+// from the active stage and from still-pending ones.
+const deriveCardStages = (
+	stages: PortfolioProject['stages'],
+): Array<{ key: string; label: string; state: CardStageState }> => {
+	const byKey = new Map(stages.map((s) => [s.key, s]))
+	let frontier = -1
+	STAGE_ORDER.forEach((key, i) => {
+		const status = byKey.get(key)?.status
+		if (status === 'COMPLETE' || status === 'CURRENT') frontier = i
+	})
+	return STAGE_ORDER.map((key, i) => {
+		const stage = byKey.get(key)
+		const status = stage?.status ?? 'UPCOMING'
+		let state: CardStageState
+		if (status === 'COMPLETE') state = 'done'
+		else if (i < frontier) state = 'skipped'
+		else if (status === 'CURRENT') state = 'active'
+		else state = 'pending'
+		return { key, label: stage?.label ?? key, state }
+	})
+}
+
 const inputStyle: React.CSSProperties = {
 	background: '#0a1020',
 	border: '1px solid rgba(59,130,246,0.15)',
@@ -332,74 +361,103 @@ const ProjectPortfolio = () => {
 							project.owner.name ??
 							project.owner.email.replace(/@.*/, '')
 
+						const cardStages = deriveCardStages(project.stages)
+						const activeStage = cardStages.find((s) => s.state === 'active')
+						const pipelineLabel =
+							activeStage?.label ??
+							(project.analysisStatus === 'COMPLETE'
+								? 'Complete'
+								: currentStage?.label ?? 'Paper')
+
 						return (
 							<Link
 								key={project.id}
 								href={`/app/projects/${project.id}`}
-								className='group relative flex flex-col overflow-hidden rounded-[22px] border border-white/[0.04] bg-[linear-gradient(180deg,rgba(255,255,255,0.035),rgba(255,255,255,0.012))] transition-all duration-300 hover:border-white/[0.08] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02))] sm:flex-row sm:items-center sm:gap-6 sm:pr-5'>
-								{/* Left: Main info */}
-								<div className='min-w-0 flex-1 p-5 sm:py-5 sm:pl-6'>
+								className='group relative flex flex-col gap-4 overflow-hidden rounded-[22px] border border-white/[0.04] bg-[linear-gradient(180deg,rgba(255,255,255,0.035),rgba(255,255,255,0.012))] p-5 transition-all duration-300 hover:border-white/[0.08] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02))] active:scale-[0.99] sm:flex-row sm:items-center sm:gap-6 sm:p-6'>
+								{/* Identity + pipeline */}
+								<div className='min-w-0 flex-1'>
 									<div className='flex items-center gap-2.5'>
-										<div className='flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#e7c35a]/10'>
+										<span className='flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#e7c35a]/10'>
 											<FlaskConical className='h-3.5 w-3.5 text-[#e7c35a]' />
-										</div>
-										<span className='text-[0.65rem] uppercase tracking-[0.22em] text-white/35'>
-											{project.domain}
 										</span>
-										<span className='text-white/15'>&middot;</span>
-										<span className='text-[0.65rem] uppercase tracking-[0.22em] text-white/30'>
-											{project.institution.name}
+										<span className='truncate text-[0.65rem] uppercase tracking-[0.22em] text-white/35'>
+											{project.domain}
+											<span className='mx-1.5 text-white/15'>&middot;</span>
+											<span className='text-white/30'>{project.institution.name}</span>
 										</span>
 									</div>
-									<h2 className='mt-2.5 text-[1.05rem] font-semibold leading-snug tracking-[-0.02em] text-white group-hover:text-white'>
+
+									<h2 className='mt-2.5 truncate text-[1.05rem] font-semibold leading-snug tracking-[-0.02em] text-white'>
 										{project.title}
 									</h2>
-									{project.shortNote && (
-										<p className='mt-1.5 line-clamp-1 max-w-2xl text-sm text-white/40'>
-											{project.shortNote}
-										</p>
-									)}
+
+									{/* Pipeline track */}
+									<div className='mt-3 flex items-center gap-3'>
+										<div className='flex items-center gap-1' aria-hidden>
+											{cardStages.map((s) => (
+												<span
+													key={s.key}
+													title={s.label}
+													className={`h-1.5 w-5 rounded-full ${s.state === 'skipped' ? 'border border-dashed border-white/20' : ''} ${s.state === 'active' ? 'animate-pulse motion-reduce:animate-none' : ''}`}
+													style={{
+														backgroundColor:
+															s.state === 'done'
+																? 'rgba(74,222,128,0.78)' // completed → green
+																: s.state === 'active'
+																	? '#e7c35a' // in progress → bright yellow
+																	: s.state === 'skipped'
+																		? 'transparent'
+																		: 'rgba(231,195,90,0.42)', // remaining → yellow
+													}}
+												/>
+											))}
+										</div>
+										<span className='whitespace-nowrap text-[0.7rem] text-white/40'>
+											{pipelineLabel}
+											{completedStages > 0 && (
+												<span className='ml-1 text-white/25'>
+													{completedStages}/{project.stages.length}
+												</span>
+											)}
+										</span>
+									</div>
 								</div>
 
-								{/* Right: Meta chips + three-dot */}
-								<div className='flex flex-wrap items-center gap-2.5 px-5 pb-5 sm:shrink-0 sm:pb-0'>
+								{/* Status + readiness + actions */}
+								<div className='flex flex-wrap items-center gap-3 sm:shrink-0 sm:flex-nowrap'>
 									<span
 										className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.65rem] font-medium uppercase tracking-[0.16em] ${status.className}`}>
 										<StatusIcon
-											className={`h-3 w-3 ${project.analysisStatus === 'PROCESSING' ? 'animate-spin' : ''}`}
+											className={`h-3 w-3 ${project.analysisStatus === 'PROCESSING' ? 'animate-spin motion-reduce:animate-none' : ''}`}
 										/>
 										{status.label}
 									</span>
 
-									<span className='inline-flex items-center rounded-full bg-white/[0.05] px-2.5 py-1 text-[0.65rem] uppercase tracking-[0.16em] text-white/50'>
-										{currentStage?.label ?? 'Paper'}
-										{completedStages > 0 && (
-											<span className='ml-1.5 text-white/25'>
-												{completedStages}/{project.stages.length}
-											</span>
-										)}
-									</span>
-
 									{project.readinessScore > 0 && (
-										<span className='inline-flex items-center gap-1.5 rounded-full bg-white/[0.05] px-2.5 py-1 text-[0.65rem] font-medium uppercase tracking-[0.16em] text-white/50'>
-											<Sparkles className='h-3 w-3 text-[#e7c35a]' />
-											{project.readinessScore}
+										<span className='inline-flex items-center gap-2 rounded-full bg-[#e7c35a]/[0.1] px-3 py-1'>
+											<Sparkles className='h-3.5 w-3.5 text-[#e7c35a]' />
+											<span className='text-sm font-semibold leading-none text-white'>
+												{project.readinessScore}
+											</span>
+											<span className='text-[0.58rem] uppercase tracking-[0.16em] text-white/40'>
+												readiness
+											</span>
 										</span>
 									)}
 
-									<span className='hidden text-[0.65rem] text-white/25 sm:inline'>
-										{ownerDisplay} &middot;{' '}
+									<span className='hidden whitespace-nowrap text-[0.65rem] text-white/25 lg:inline'>
+										{ownerDisplay}
+										<span className='mx-1 text-white/15'>&middot;</span>
 										{formatUpdatedAt(project.updatedAt)}
 									</span>
 
-									{/* Three-dot menu button */}
+									{/* Three-dot menu (reachable on touch, fades in on hover at sm+) */}
 									<button
-										ref={(el) => { menuBtnRefs.current[project.id] = el }}
+										ref={(el) => {
+											menuBtnRefs.current[project.id] = el
+										}}
 										onClick={(e) => openDropdown(e, project.id)}
-										className='flex h-7 w-7 items-center justify-center rounded-lg opacity-0 transition-opacity duration-150 group-hover:opacity-100 sm:ml-1'
-										style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.4)' }}
-										onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.10)'; (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.6)' }}
-										onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)'; (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.4)' }}>
+										className='flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/[0.06] text-white/40 opacity-100 transition-all duration-150 hover:bg-white/10 hover:text-white/70 focus-visible:opacity-100 sm:ml-1 sm:opacity-0 sm:group-hover:opacity-100'>
 										<MoreHorizontal className='h-3.5 w-3.5' />
 									</button>
 
