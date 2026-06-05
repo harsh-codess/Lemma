@@ -79,21 +79,36 @@ export async function runProjectCreationFlow({
 	onProjectCreated?.(project.id as string)
 
 	onPhaseChange?.('uploading-paper')
-	const formData = new FormData()
-	formData.append('file', file)
-	formData.append('projectId', project.id)
-
-	const uploadRes = await fetch('/api/upload', {
+	// Two-step upload: ask the API for a presigned URL, then PUT the file
+	// straight to R2. Routing the bytes through /api/upload breaks on Vercel,
+	// which caps request bodies at ~4.5 MB — smaller than most papers.
+	const presignRes = await fetch('/api/upload', {
 		method: 'POST',
-		body: formData,
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({
+			projectId: project.id,
+			fileName: file.name,
+			fileType: file.type,
+			fileSize: file.size,
+		}),
 	})
 
-	if (!uploadRes.ok) {
-		const err = await uploadRes.json().catch(() => null)
+	if (!presignRes.ok) {
+		const err = await presignRes.json().catch(() => null)
 		throw new Error(err?.error ?? 'Failed to upload paper')
 	}
 
-	const { publicUrl } = await uploadRes.json()
+	const { uploadUrl, publicUrl } = await presignRes.json()
+
+	const putRes = await fetch(uploadUrl, {
+		method: 'PUT',
+		headers: { 'Content-Type': file.type },
+		body: file,
+	})
+
+	if (!putRes.ok) {
+		throw new Error('Failed to upload paper to storage')
+	}
 
 	onPhaseChange?.('linking-paper')
 	const patchRes = await fetch(`/api/projects/${project.id}`, {

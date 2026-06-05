@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
-import { r2, BUCKET_NAME } from '@/lib/r2'
-import { PutObjectCommand } from '@aws-sdk/client-s3'
+import { z } from 'zod'
+import { prisma } from '@/lib/prisma'
+import { getUploadPresignedUrl, getPublicUrl } from '@/lib/r2'
 
 const ALLOWED_TYPES = new Set([
 	'application/pdf',
@@ -11,48 +12,59 @@ const ALLOWED_TYPES = new Set([
 
 const MAX_SIZE_BYTES = 30 * 1024 * 1024 // 30 MB
 
+const presignSchema = z.object({
+	projectId: z.string().min(1),
+	fileName: z.string().min(1).max(255),
+	fileType: z.string().min(1),
+	fileSize: z.number().int().positive(),
+})
+
 /**
- * POST /api/upload  (multipart/form-data: file, projectId)
+ * POST /api/upload  (JSON: { projectId, fileName, fileType, fileSize })
  *
- * Uploads the file server-side to R2 — avoids cross-origin CORS issues entirely.
- * Returns { publicUrl, key }.
+ * Returns a presigned PUT URL for a direct browser → R2 upload. The file
+ * itself never passes through this server: Vercel rejects request bodies
+ * over ~4.5 MB at the platform edge, so proxying the upload (the previous
+ * design) silently broke for most real papers. Validation happens here;
+ * the browser then PUTs the bytes straight to R2.
+ *
+ * Returns { uploadUrl, publicUrl, key }.
  */
 export async function POST(request: NextRequest) {
 	const { userId } = await auth()
 	if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-	const formData = await request.formData()
-	const file = formData.get('file')
-	const projectId = formData.get('projectId')
+	const body = await request.json().catch(() => null)
+	const parsed = presignSchema.safeParse(body)
+	if (!parsed.success) {
+		return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
+	}
+	const { projectId, fileName, fileType, fileSize } = parsed.data
 
-	if (!file || typeof file === 'string') {
-		return NextResponse.json({ error: 'No file provided' }, { status: 400 })
-	}
-	if (!projectId || typeof projectId !== 'string') {
-		return NextResponse.json({ error: 'projectId is required' }, { status: 400 })
-	}
-	if (!ALLOWED_TYPES.has(file.type)) {
+	if (!ALLOWED_TYPES.has(fileType)) {
 		return NextResponse.json({ error: 'Only PDF and Word documents are allowed' }, { status: 415 })
 	}
-	if (file.size > MAX_SIZE_BYTES) {
+	if (fileSize > MAX_SIZE_BYTES) {
 		return NextResponse.json({ error: 'File exceeds 30 MB limit' }, { status: 413 })
 	}
 
+	// Only the project owner may attach a paper to it.
+	const project = await prisma.project.findUnique({
+		where: { id: projectId },
+		select: { ownerId: true },
+	})
+	if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+	if (project.ownerId !== userId) {
+		return NextResponse.json(
+			{ error: 'Only the project owner can upload a paper' },
+			{ status: 403 },
+		)
+	}
+
 	const timestamp = Date.now()
-	const sanitizedFilename = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+	const sanitizedFilename = fileName.replace(/[^a-zA-Z0-9._-]/g, '_')
 	const key = `papers/${userId}/${projectId}/${timestamp}-${sanitizedFilename}`
 
-	const buffer = Buffer.from(await file.arrayBuffer())
-
-	await r2.send(
-		new PutObjectCommand({
-			Bucket: BUCKET_NAME,
-			Key: key,
-			Body: buffer,
-			ContentType: file.type,
-		}),
-	)
-
-	const publicUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${key}`
-	return NextResponse.json({ publicUrl, key })
+	const { url: uploadUrl } = await getUploadPresignedUrl(key, fileType)
+	return NextResponse.json({ uploadUrl, publicUrl: getPublicUrl(key), key })
 }
