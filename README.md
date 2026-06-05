@@ -2,7 +2,8 @@
 
 **A commercialization evaluation platform for Technology Transfer Offices (TTOs) and researchers.**
 
-Upload a research paper (PDF) and Lemma runs it through a pipeline of grounded AI agents that evaluate its commercial potential — paper analysis, TRL/IRL readiness scoring, market sizing with live web retrieval, feasibility assessment, and a fully-cited investor deck exportable to PDF, PowerPoint, and Word.
+Upload a research paper (PDF) and Lemma runs it through a pipeline of grounded AI agents that evaluate its commercial potential — paper analysis, TRL/IRL readiness scoring, market sizing with live web retrieval, feasibility 
+assessment, and a fully-cited investor deck exportable to PDF, PowerPoint, and Word.
 
 ---
 
