@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
+import { getProjectAccess } from '@/lib/project-access'
 import { generateAndStoreExports } from '@/lib/deck-render/store-exports'
 import { EXPORT_FORMATS, isExportFormat, type ExportFormat } from '@/lib/deck-render'
 
@@ -20,44 +21,34 @@ type RouteContext = { params: { id: string } }
 export const runtime = 'nodejs'
 export const maxDuration = 120
 
-/** Confirm the signed-in user may see this project (mirrors the GET route's rules). */
-async function assertVisible(projectId: string, userId: string) {
-	const user = await prisma.user.findUnique({
-		where: { id: userId },
-		select: { role: true, institutionId: true },
-	})
-
-	let where: Record<string, unknown> = { id: projectId, ownerId: userId }
-	if (user) {
-		switch (user.role) {
-			case 'ADMIN':
-				where = { id: projectId }
-				break
-			case 'TTO_LEAD':
-			case 'TTO_ANALYST':
-				where = user.institutionId ? { id: projectId, institutionId: user.institutionId } : where
-				break
-			case 'COMMITTEE_MEMBER':
-				where = user.institutionId
-					? { id: projectId, institutionId: user.institutionId, status: { in: ['IN_REVIEW', 'READY_FOR_EXPORT'] } }
-					: where
-				break
-		}
+/**
+ * Resolve visibility via the shared access rules (same as the project GET):
+ * 404 only when the project truly does not exist, 403 when the caller is
+ * signed in but may not see it.
+ */
+async function resolveAccess(projectId: string, userId: string) {
+	const access = await getProjectAccess(projectId, userId)
+	if (access.outcome === 'not_found') {
+		return { response: NextResponse.json({ error: 'Project not found' }, { status: 404 }) }
 	}
-
-	return prisma.project.findFirst({
-		where,
-		select: { id: true, deck: { select: { id: true } } },
-	})
+	if (access.outcome === 'forbidden') {
+		return { response: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
+	}
+	return { access }
 }
 
 export async function POST(request: NextRequest, { params }: RouteContext) {
 	const { userId } = await auth()
 	if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-	const project = await assertVisible(params.id, userId)
-	if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
-	if (!project.deck) {
+	const { response } = await resolveAccess(params.id, userId)
+	if (response) return response
+
+	const deck = await prisma.deckData.findUnique({
+		where: { projectId: params.id },
+		select: { id: true },
+	})
+	if (!deck) {
 		return NextResponse.json(
 			{ error: 'No deck to export — the project has not produced a pitch deck yet.' },
 			{ status: 409 },
@@ -88,8 +79,8 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
 	const { userId } = await auth()
 	if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-	const project = await assertVisible(params.id, userId)
-	if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+	const { response } = await resolveAccess(params.id, userId)
+	if (response) return response
 
 	const exports = await prisma.deckExport.findMany({
 		where: { projectId: params.id },

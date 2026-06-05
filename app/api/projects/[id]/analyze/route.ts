@@ -41,13 +41,20 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
 		)
 	}
 
-	const project = await prisma.project.findFirst({
-		where: { id: params.id, ownerId: userId },
-		select: { id: true, paperUrl: true, analysisStatus: true, title: true },
+	const project = await prisma.project.findUnique({
+		where: { id: params.id },
+		select: { id: true, ownerId: true, paperUrl: true, analysisStatus: true, title: true },
 	})
 
 	if (!project) {
 		return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+	}
+	// Triggering analysis is owner-only (it spends the owner's rate budget).
+	if (project.ownerId !== userId) {
+		return NextResponse.json(
+			{ error: 'Only the project owner can start an analysis' },
+			{ status: 403 },
+		)
 	}
 
 	if (!project.paperUrl) {
