@@ -34,6 +34,10 @@ import { cn } from '@/lib/utils'
 // Pure string helper from the deck render layer — reused so on-screen capital
 // figures match the exported deck exactly (raw rupees → crores).
 import { formatCurrencyInText } from '@/lib/deck-render/currency'
+// Pure transition rules shared with POST /api/projects/[id]/review — type-only
+// prisma imports, so it is safe in a client component.
+import { isReviewerRole } from '@/lib/review-flow'
+import type { UserRole } from '@prisma/client'
 
 // ─── Types matching the real API response ────────────────────────────────────
 
@@ -44,7 +48,9 @@ type ApiProject = {
 	title: string
 	domain: string
 	shortNote: string | null
-	status: string
+	status: 'DRAFT' | 'IN_REVIEW' | 'READY_FOR_EXPORT'
+	/** The signed-in viewer's role — gates the reviewer-only controls. */
+	viewerRole: string
 	currentStage: StageKey
 	readinessScore: number
 	paperUrl: string | null
@@ -722,6 +728,221 @@ const DeckExport = ({
 					)}
 				</div>
 			)}
+		</SurfaceCard>
+	)
+}
+
+// ─── Review decision (reviewer-only) ─────────────────────────────────────────
+
+const reviewStatusLabels: Record<ApiProject['status'], string> = {
+	DRAFT: 'Awaiting review',
+	IN_REVIEW: 'In committee review',
+	READY_FOR_EXPORT: 'Approved for export',
+}
+
+// Wires POST /api/projects/[id]/review. Rendered only for reviewer roles
+// (TTO_LEAD / COMMITTEE_MEMBER); the server re-checks the role and the
+// transition, so this is presentation-gating only.
+const ReviewDecision = ({
+	project,
+	onDecided,
+}: {
+	project: ApiProject
+	onDecided: () => void
+}) => {
+	const [comment, setComment] = useState('')
+	const [pendingAction, setPendingAction] = useState<'approve' | 'request_changes' | null>(null)
+	const [error, setError] = useState<string | null>(null)
+
+	const decide = useCallback(
+		async (action: 'approve' | 'request_changes') => {
+			setPendingAction(action)
+			setError(null)
+			try {
+				const res = await fetch(`/api/projects/${project.id}/review`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ action, ...(comment.trim() ? { comment: comment.trim() } : {}) }),
+				})
+				const data = await res.json().catch(() => ({}))
+				if (!res.ok) {
+					throw new Error(
+						typeof data?.error === 'string' ? data.error : 'Failed to record the decision',
+					)
+				}
+				setComment('')
+				onDecided()
+			} catch (err) {
+				setError(err instanceof Error ? err.message : 'Failed to record the decision')
+			} finally {
+				setPendingAction(null)
+			}
+		},
+		[project.id, comment, onDecided],
+	)
+
+	const isApproved = project.status === 'READY_FOR_EXPORT'
+	const approveLabel =
+		project.status === 'DRAFT' ? 'Approve for committee review' : 'Approve for export'
+
+	return (
+		<SurfaceCard
+			title='Review decision'
+			description='Move the project through the approval handoff or send it back with feedback.'>
+			<div className='space-y-4'>
+				<div className='inline-flex items-center gap-2 rounded-full bg-white/[0.07] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white/70'>
+					<ShieldCheck className='h-4 w-4' />
+					{reviewStatusLabels[project.status]}
+				</div>
+
+				<textarea
+					value={comment}
+					onChange={(event) => setComment(event.target.value)}
+					placeholder='Optional comment — recorded as a reviewer note with your decision'
+					rows={3}
+					className='w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white outline-none transition-colors placeholder:text-white/25 focus:border-blue-500/40 focus:bg-white/[0.05]'
+					disabled={pendingAction !== null}
+				/>
+
+				<div className='flex flex-wrap items-center gap-3'>
+					{!isApproved && (
+						<Button
+							type='button'
+							onClick={() => decide('approve')}
+							disabled={pendingAction !== null}
+							className='h-11 rounded-full bg-[#e7c35a] px-5 text-sm font-semibold text-black hover:bg-[#f0d375] disabled:opacity-60'>
+							{pendingAction === 'approve' ? (
+								<Loader2 className='mr-2 h-4 w-4 animate-spin' />
+							) : (
+								<CheckCircle2 className='mr-2 h-4 w-4' />
+							)}
+							{approveLabel}
+						</Button>
+					)}
+					{project.status !== 'DRAFT' && (
+						<Button
+							type='button'
+							onClick={() => decide('request_changes')}
+							disabled={pendingAction !== null}
+							variant='outline'
+							className='h-11 rounded-full bg-white/[0.05] px-5 text-sm text-white hover:bg-white/[0.08] hover:text-white disabled:opacity-60'>
+							{pendingAction === 'request_changes' ? (
+								<Loader2 className='mr-2 h-4 w-4 animate-spin' />
+							) : (
+								<RefreshCw className='mr-2 h-4 w-4' />
+							)}
+							Request changes
+						</Button>
+					)}
+				</div>
+
+				{error && (
+					<div className='flex items-center gap-3 rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3'>
+						<AlertTriangle className='h-4 w-4 shrink-0 text-red-400' />
+						<p className='text-xs text-red-400/80'>{error}</p>
+					</div>
+				)}
+			</div>
+		</SurfaceCard>
+	)
+}
+
+// Lists every reviewer note on the project; reviewers also get an input that
+// POSTs to /api/projects/[id]/notes (stageKey REVIEW).
+const ReviewNotesPanel = ({
+	projectId,
+	notes,
+	canWrite,
+	onCreated,
+}: {
+	projectId: string
+	notes: ApiProject['reviewNotes']
+	canWrite: boolean
+	onCreated: () => void
+}) => {
+	const [comment, setComment] = useState('')
+	const [isPosting, setIsPosting] = useState(false)
+	const [error, setError] = useState<string | null>(null)
+
+	const post = useCallback(async () => {
+		if (!comment.trim()) return
+		setIsPosting(true)
+		setError(null)
+		try {
+			const res = await fetch(`/api/projects/${projectId}/notes`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ comment: comment.trim() }),
+			})
+			const data = await res.json().catch(() => ({}))
+			if (!res.ok) {
+				throw new Error(typeof data?.error === 'string' ? data.error : 'Failed to add the note')
+			}
+			setComment('')
+			onCreated()
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Failed to add the note')
+		} finally {
+			setIsPosting(false)
+		}
+	}, [projectId, comment, onCreated])
+
+	return (
+		<SurfaceCard
+			title='Reviewer notes'
+			description='Feedback attached to this project by TTO leads and committee members.'>
+			<div className='space-y-4'>
+				{canWrite && (
+					<div className='space-y-3'>
+						<textarea
+							value={comment}
+							onChange={(event) => setComment(event.target.value)}
+							placeholder='Add a note for the researcher and other reviewers'
+							rows={3}
+							className='w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white outline-none transition-colors placeholder:text-white/25 focus:border-blue-500/40 focus:bg-white/[0.05]'
+							disabled={isPosting}
+						/>
+						<div className='flex items-center gap-3'>
+							<Button
+								type='button'
+								onClick={post}
+								disabled={isPosting || !comment.trim()}
+								variant='outline'
+								className='h-10 rounded-full bg-white/[0.05] px-4 text-xs font-semibold text-white hover:bg-white/[0.08] hover:text-white disabled:opacity-50'>
+								{isPosting ? (
+									<Loader2 className='mr-2 h-3.5 w-3.5 animate-spin' />
+								) : (
+									<ClipboardCheck className='mr-2 h-3.5 w-3.5' />
+								)}
+								{isPosting ? 'Adding…' : 'Add note'}
+							</Button>
+							{error && <p className='text-xs text-red-400'>{error}</p>}
+						</div>
+					</div>
+				)}
+
+				{notes.length > 0 ? (
+					<div className='space-y-3'>
+						{notes.map((note) => (
+							<div key={note.id} className='rounded-2xl bg-black/25 px-4 py-4'>
+								<div className='flex flex-wrap items-center justify-between gap-2'>
+									<p className='text-sm font-semibold text-white'>
+										{note.author.name ?? note.author.email} · {note.author.role}
+									</p>
+									<span className='inline-flex rounded-full bg-white/[0.06] px-2.5 py-1 text-[0.62rem] font-medium uppercase tracking-[0.18em] text-white/55'>
+										{note.status}
+									</span>
+								</div>
+								<p className='mt-2 text-sm leading-7 text-white/62'>{note.comment}</p>
+							</div>
+						))}
+					</div>
+				) : (
+					<div className='rounded-[26px] bg-white/[0.03] px-5 py-8 text-center text-sm text-white/48'>
+						No reviewer notes yet.
+					</div>
+				)}
+			</div>
 		</SurfaceCard>
 	)
 }
@@ -1440,6 +1661,7 @@ const ProjectWorkspace = ({ projectId }: { projectId: string }) => {
 	// ── Review ────────────────────────────────────────────────────────
 	const renderReviewSummary = () => {
 		const deckReady = Boolean(project.deck) || project.deckSlides.length > 0
+		const viewerIsReviewer = isReviewerRole(project.viewerRole as UserRole)
 
 		// Nothing to show yet — no review data and no deck to export.
 		if (!project.review && !deckReady) {
@@ -1454,6 +1676,15 @@ const ProjectWorkspace = ({ projectId }: { projectId: string }) => {
 
 		return (
 			<div className='space-y-5'>
+				{viewerIsReviewer && <ReviewDecision project={project} onDecided={fetchProject} />}
+
+				<ReviewNotesPanel
+					projectId={project.id}
+					notes={project.reviewNotes}
+					canWrite={viewerIsReviewer}
+					onCreated={fetchProject}
+				/>
+
 				{deckReady && <DeckExport projectId={project.id} onGenerated={fetchProject} />}
 
 				{review && (
