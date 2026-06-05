@@ -1,5 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+	experimental: {
+		// @sparticuz/chromium ships its Chromium binary in bin/ and resolves it
+		// relative to its own module path at runtime. Bundling relocates the JS
+		// and strips bin/ ("input directory .../chromium/bin does not exist" on
+		// Vercel) — keep it external so the whole package, binary included, is
+		// file-traced into the function as-is. puppeteer-core likewise.
+		serverComponentsExternalPackages: ['@sparticuz/chromium', 'puppeteer-core'],
+		outputFileTracingIncludes: {
+			'/api/projects/[id]/export': ['./node_modules/@sparticuz/chromium/bin/**'],
+		},
+	},
 	webpack(config) {
 		// Grab the existing rule that handles SVG imports
 		const fileLoaderRule = config.module.rules.find((rule) =>
