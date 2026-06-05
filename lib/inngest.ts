@@ -98,7 +98,9 @@ export const analyzePaper = inngest.createFunction(
 	{
 		id: 'analyze-paper-pipeline',
 		retries: 3,
-		concurrency: { limit: 10 },
+		// Inngest free-plan cap is 5 concurrent runs; higher values are
+		// rejected at app-sync time ("higher concurrency limits than your plan").
+		concurrency: { limit: 5 },
 		triggers: [{ event: 'paper/uploaded' }],
 		onFailure: async ({ event, error }: { event: any; error: Error }) => {
 			// If all retries are exhausted, mark the project as FAILED
