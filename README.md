@@ -1,5 +1,7 @@
 # Lemma
 
+### 🚀 **Live now — [uselemma.vercel.app](https://uselemma.vercel.app)** — sign up and start evaluating papers.
+
 **A commercialization evaluation platform for Technology Transfer Offices (TTOs) and researchers.**
 
 Upload a research paper (PDF) and Lemma runs it through a pipeline of grounded AI agents that evaluate its commercial potential — paper analysis, TRL/IRL readiness scoring, market sizing with live web retrieval, feasibility 
